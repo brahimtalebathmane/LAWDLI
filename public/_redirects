@@ -1,20 +1,2 @@
-# Netlify _redirects file for SPA with static asset handling
-
-# Static assets - serve with correct paths and MIME types
-/assets/* /assets/:splat 200
-/*.js /:splat.js 200
-/*.mjs /:splat.mjs 200
-/*.css /:splat.css 200
-/*.json /:splat.json 200
-/*.woff2 /:splat.woff2 200
-/*.png /:splat.png 200
-/*.jpg /:splat.jpg 200
-/*.jpeg /:splat.jpeg 200
-/*.gif /:splat.gif 200
-/*.svg /:splat.svg 200
-/*.ico /:splat.ico 200
-/manifest.json /manifest.json 200
-/sw.js /sw.js 200
-
-# SPA fallback for all other requests
-/* /index.html 200
+# Handle SPA routing
+/*    /index.html   200
