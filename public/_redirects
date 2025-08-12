@@ -1,0 +1,10 @@
+# Netlify redirects file for SPA routing
+# Handle static assets first
+/assets/* /assets/:splat 200
+/*.js /:splat.js 200
+/*.css /:splat.css 200
+/manifest.json /manifest.json 200
+/sw.js /sw.js 200
+
+# SPA fallback for all other routes
+/* /index.html 200
