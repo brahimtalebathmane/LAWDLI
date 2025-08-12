@@ -2,57 +2,7 @@
   publish = "dist"
   command = "npm run build"
 
-[build.environment]
-  NODE_VERSION = "18"
-
-# Serve static assets with correct MIME types
-[[headers]]
-  for = "/assets/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "*.js"
-  [headers.values]
-    Content-Type = "application/javascript"
-
-[[headers]]
-  for = "*.css"
-  [headers.values]
-    Content-Type = "text/css"
-
-[[headers]]
-  for = "*.json"
-  [headers.values]
-    Content-Type = "application/json"
-
-# Handle static assets first - don't redirect these
-[[redirects]]
-  from = "/assets/*"
-  to = "/assets/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/*.js"
-  to = "/:splat.js"
-  status = 200
-
-[[redirects]]
-  from = "/*.css"
-  to = "/:splat.css"
-  status = 200
-
-[[redirects]]
-  from = "/manifest.json"
-  to = "/manifest.json"
-  status = 200
-
-[[redirects]]
-  from = "/sw.js"
-  to = "/sw.js"
-  status = 200
-
-# SPA fallback - only for HTML requests (last rule)
 [[redirects]]
   from = "/*"
   to = "/index.html"
+  status = 200
