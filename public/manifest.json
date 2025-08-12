@@ -1,0 +1,25 @@
+{
+  "name": "LAWDLI - Resource Group Communication",
+  "short_name": "LAWDLI",
+  "description": "Connect admins with resource groups through real-time notifications and responses",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "https://i.postimg.cc/rygydTNp/9.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://i.postimg.cc/rygydTNp/9.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "orientation": "portrait-primary",
+  "categories": ["productivity", "business"]
+}

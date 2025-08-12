@@ -1,0 +1,186 @@
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
+type Language = 'ar' | 'fr';
+
+interface LanguageContextType {
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  t: (key: string) => string;
+  isRTL: boolean;
+}
+
+const translations = {
+  ar: {
+    // Auth
+    login: 'تسجيل الدخول',
+    phoneNumber: 'رقم الهاتف',
+    pinCode: 'رمز PIN',
+    loginButton: 'دخول',
+    invalidCredentials: 'بيانات الدخول غير صحيحة',
+    
+    // Navigation
+    dashboard: 'لوحة التحكم',
+    requests: 'الطلبات',
+    groups: 'المجموعات',
+    users: 'المستخدمين',
+    notifications: 'الإشعارات',
+    logout: 'تسجيل الخروج',
+    
+    // Dashboard
+    welcome: 'مرحباً',
+    totalRequests: 'إجمالي الطلبات',
+    totalGroups: 'إجمالي المجموعات',
+    totalUsers: 'إجمالي المستخدمين',
+    recentActivity: 'النشاط الأخير',
+    
+    // Requests
+    createRequest: 'إنشاء طلب جديد',
+    requestTitle: 'عنوان الطلب',
+    requestDescription: 'وصف الطلب',
+    selectGroups: 'اختر المجموعات',
+    uploadImage: 'رفع صورة',
+    sendRequest: 'إرسال الطلب',
+    
+    // Responses
+    available: 'موجود',
+    notAvailable: 'غير موجود',
+    alternative: 'بديل',
+    respond: 'رد',
+    
+    // Groups
+    createGroup: 'إنشاء مجموعة',
+    groupName: 'اسم المجموعة',
+    groupDescription: 'وصف المجموعة',
+    members: 'الأعضاء',
+    
+    // Users
+    createUser: 'إنشاء مستخدم',
+    fullName: 'الاسم الكامل',
+    role: 'الدور',
+    admin: 'مدير',
+    user: 'مستخدم',
+    
+    // Common
+    save: 'حفظ',
+    cancel: 'إلغاء',
+    delete: 'حذف',
+    edit: 'تعديل',
+    view: 'عرض',
+    loading: 'جارِ التحميل...',
+    noData: 'لا توجد بيانات',
+    success: 'تم بنجاح',
+    error: 'خطأ',
+    confirm: 'تأكيد',
+  },
+  fr: {
+    // Auth
+    login: 'Connexion',
+    phoneNumber: 'Numéro de téléphone',
+    pinCode: 'Code PIN',
+    loginButton: 'Se connecter',
+    invalidCredentials: 'Identifiants invalides',
+    
+    // Navigation
+    dashboard: 'Tableau de bord',
+    requests: 'Demandes',
+    groups: 'Groupes',
+    users: 'Utilisateurs',
+    notifications: 'Notifications',
+    logout: 'Déconnexion',
+    
+    // Dashboard
+    welcome: 'Bienvenue',
+    totalRequests: 'Total des demandes',
+    totalGroups: 'Total des groupes',
+    totalUsers: 'Total des utilisateurs',
+    recentActivity: 'Activité récente',
+    
+    // Requests
+    createRequest: 'Créer une demande',
+    requestTitle: 'Titre de la demande',
+    requestDescription: 'Description de la demande',
+    selectGroups: 'Sélectionner les groupes',
+    uploadImage: 'Télécharger une image',
+    sendRequest: 'Envoyer la demande',
+    
+    // Responses
+    available: 'Disponible',
+    notAvailable: 'Indisponible',
+    alternative: 'Alternative',
+    respond: 'Répondre',
+    
+    // Groups
+    createGroup: 'Créer un groupe',
+    groupName: 'Nom du groupe',
+    groupDescription: 'Description du groupe',
+    members: 'Membres',
+    
+    // Users
+    createUser: 'Créer un utilisateur',
+    fullName: 'Nom complet',
+    role: 'Rôle',
+    admin: 'Administrateur',
+    user: 'Utilisateur',
+    
+    // Common
+    save: 'Enregistrer',
+    cancel: 'Annuler',
+    delete: 'Supprimer',
+    edit: 'Modifier',
+    view: 'Voir',
+    loading: 'Chargement...',
+    noData: 'Aucune donnée',
+    success: 'Succès',
+    error: 'Erreur',
+    confirm: 'Confirmer',
+  }
+};
+
+const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+
+export const useLanguage = () => {
+  const context = useContext(LanguageContext);
+  if (context === undefined) {
+    throw new Error('useLanguage must be used within a LanguageProvider');
+  }
+  return context;
+};
+
+interface LanguageProviderProps {
+  children: ReactNode;
+}
+
+export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) => {
+  const [language, setLanguageState] = useState<Language>('ar');
+
+  useEffect(() => {
+    const storedLang = localStorage.getItem('lawdli_language') as Language;
+    if (storedLang && (storedLang === 'ar' || storedLang === 'fr')) {
+      setLanguageState(storedLang);
+    }
+  }, []);
+
+  const setLanguage = (lang: Language) => {
+    setLanguageState(lang);
+    localStorage.setItem('lawdli_language', lang);
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = lang;
+  };
+
+  const t = (key: string): string => {
+    return translations[language][key as keyof typeof translations[Language]] || key;
+  };
+
+  const isRTL = language === 'ar';
+
+  useEffect(() => {
+    document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+    document.documentElement.lang = language;
+  }, [language, isRTL]);
+
+  return (
+    <LanguageContext.Provider value={{ language, setLanguage, t, isRTL }}>
+      {children}
+    </LanguageContext.Provider>
+  );
+};
