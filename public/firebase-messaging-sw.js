@@ -24,13 +24,20 @@ messaging.onBackgroundMessage((payload) => {
     icon: 'https://i.postimg.cc/rygydTNp/9.png',
     badge: 'https://i.postimg.cc/rygydTNp/9.png',
     data: payload.data || {},
-    requireInteraction: true,
+    requireInteraction: false,
+    silent: false,
+    vibrate: [200, 100, 200],
+    tag: 'lawdli-notification',
     actions: [
       {
         action: 'open',
-        title: 'Open App'
+        title: 'Open App',
+        icon: 'https://i.postimg.cc/rygydTNp/9.png'
       }
-    ]
+    ],
+    // PWA specific options
+    renotify: true,
+    sticky: false
   };
 
   return self.registration.showNotification(notificationTitle, notificationOptions);
@@ -43,11 +50,16 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
   const deepLink = event.notification.data?.deepLink || '/';
+  const fullUrl = self.location.origin + deepLink;
   
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       // Check if there's already a window/tab open
       for (const client of clientList) {
+        if (client.url === fullUrl && 'focus' in client) {
+          return client.focus();
+        }
+        // If any LAWDLI window is open, focus it and navigate
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           client.postMessage({
             type: 'NOTIFICATION_CLICK',
@@ -59,8 +71,50 @@ self.addEventListener('notificationclick', (event) => {
       
       // If no existing window/tab, open a new one
       if (clients.openWindow) {
-        return clients.openWindow(self.location.origin + deepLink);
+        return clients.openWindow(fullUrl);
       }
     })
   );
+});
+
+// Handle push events for better mobile compatibility
+self.addEventListener('push', (event) => {
+  console.log('Push event received:', event);
+  
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      const options = {
+        body: data.body || data.message || 'You have a new notification',
+        icon: 'https://i.postimg.cc/rygydTNp/9.png',
+        badge: 'https://i.postimg.cc/rygydTNp/9.png',
+        vibrate: [200, 100, 200],
+        data: data.data || { deepLink: '/' },
+        tag: 'lawdli-push',
+        renotify: true,
+        requireInteraction: false,
+        actions: [
+          {
+            action: 'open',
+            title: 'Open',
+            icon: 'https://i.postimg.cc/rygydTNp/9.png'
+          }
+        ]
+      };
+
+      event.waitUntil(
+        self.registration.showNotification(data.title || 'لودلي | LAWDLI', options)
+      );
+    } catch (error) {
+      console.error('Error parsing push data:', error);
+      // Fallback notification
+      event.waitUntil(
+        self.registration.showNotification('لودلي | LAWDLI', {
+          body: 'You have a new notification',
+          icon: 'https://i.postimg.cc/rygydTNp/9.png',
+          badge: 'https://i.postimg.cc/rygydTNp/9.png'
+        })
+      );
+    }
+  }
 });

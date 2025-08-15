@@ -18,9 +18,25 @@ const UserDashboard: React.FC = () => {
       loadUserRequests();
       loadUserResponses();
       
-      // Set up real-time subscription for new requests
-      const subscription = supabase
-        .channel('user-requests')
+      // Set up real-time subscriptions for requests and request_groups
+      const requestsSubscription = supabase
+        .channel('requests-realtime')
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'requests'
+        }, () => {
+          console.log('New request detected, reloading...');
+          loadUserRequests();
+        })
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'request_groups'
+        }, () => {
+          console.log('New request group assignment detected, reloading...');
+          loadUserRequests();
+        })
         .on('postgres_changes', {
           event: '*',
           schema: 'public',
@@ -32,7 +48,7 @@ const UserDashboard: React.FC = () => {
         .subscribe();
 
       return () => {
-        subscription.unsubscribe();
+        requestsSubscription.unsubscribe();
       };
     }
   }, [user]);

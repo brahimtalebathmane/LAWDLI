@@ -77,7 +77,7 @@ const saveFCMToken = async (userId: string, token: string) => {
   try {
     const { supabase } = await import('./supabase');
     
-    // Upsert token in user_tokens table (insert or update if exists)
+    // First try to update existing token, then insert if not exists
     await supabase
       .from('user_tokens')
       .upsert({
@@ -87,6 +87,8 @@ const saveFCMToken = async (userId: string, token: string) => {
       }, {
         onConflict: 'user_id'
       });
+      
+    console.log('FCM token saved successfully for user:', userId);
       
   } catch (error) {
     console.error('Error saving FCM token:', error);

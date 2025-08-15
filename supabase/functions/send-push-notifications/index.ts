@@ -111,12 +111,60 @@ serve(async (req) => {
             title,
             body,
             icon: 'https://i.postimg.cc/rygydTNp/9.png',
-            badge: 'https://i.postimg.cc/rygydTNp/9.png'
+            badge: 'https://i.postimg.cc/rygydTNp/9.png',
+            click_action: data?.deepLink || '/',
+            tag: 'lawdli-notification'
           },
           data: data || {},
           webpush: {
+            headers: {
+              'Urgency': 'high'
+            },
             fcm_options: {
               link: data?.deepLink || '/'
+            },
+            notification: {
+              title,
+              body,
+              icon: 'https://i.postimg.cc/rygydTNp/9.png',
+              badge: 'https://i.postimg.cc/rygydTNp/9.png',
+              vibrate: [200, 100, 200],
+              requireInteraction: false,
+              silent: false,
+              tag: 'lawdli-notification',
+              renotify: true,
+              actions: [
+                {
+                  action: 'open',
+                  title: 'Open',
+                  icon: 'https://i.postimg.cc/rygydTNp/9.png'
+                }
+              ]
+            }
+          },
+          android: {
+            priority: 'high',
+            notification: {
+              title,
+              body,
+              icon: 'https://i.postimg.cc/rygydTNp/9.png',
+              click_action: data?.deepLink || '/',
+              tag: 'lawdli-notification'
+            }
+          },
+          apns: {
+            headers: {
+              'apns-priority': '10'
+            },
+            payload: {
+              aps: {
+                alert: {
+                  title,
+                  body
+                },
+                badge: 1,
+                sound: 'default'
+              }
             }
           }
         };
@@ -125,12 +173,14 @@ serve(async (req) => {
           method: 'POST',
           headers: {
             'Authorization': `key=${fcmServerKey}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Priority': 'high'
           },
           body: JSON.stringify(fcmPayload)
         });
 
         const fcmResult = await fcmResponse.json();
+        console.log('FCM Response:', fcmResult);
 
         if (fcmResponse.ok && fcmResult.success === 1) {
           sentCount++;
@@ -139,7 +189,8 @@ serve(async (req) => {
           
           // Check for invalid token errors
           if (fcmResult.results?.[0]?.error === 'NotRegistered' || 
-              fcmResult.results?.[0]?.error === 'InvalidRegistration') {
+              fcmResult.results?.[0]?.error === 'InvalidRegistration' ||
+              fcmResult.results?.[0]?.error === 'MismatchSenderId') {
             invalidTokens.push(tokenData.fcm_token);
           }
           

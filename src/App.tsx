@@ -12,6 +12,19 @@ const AppRouter: React.FC = () => {
 
   // Handle foreground push messages
   React.useEffect(() => {
+    // Listen for service worker messages (notification clicks)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'NOTIFICATION_CLICK') {
+          const deepLink = event.data.deepLink;
+          if (deepLink && deepLink !== '/') {
+            // Navigate to the deep link if it's not the home page
+            window.location.href = deepLink;
+          }
+        }
+      });
+    }
+    
     onForegroundMessage((payload) => {
       // Handle foreground messages - show in-app notification
       if (payload.notification) {
@@ -19,12 +32,152 @@ const AppRouter: React.FC = () => {
         
         // Show browser notification even in foreground for better UX
         if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification(payload.notification.title, {
+          const notification = new Notification(payload.notification.title, {
             body: payload.notification.body,
             icon: 'https://i.postimg.cc/rygydTNp/9.png',
             badge: 'https://i.postimg.cc/rygydTNp/9.png',
-            data: payload.data
+            data: payload.data,
+            tag: 'lawdli-foreground',
+            renotify: true
           });
+          
+          // Handle notification click in foreground
+          notification.onclick = () => {
+            notification.close();
+            const deepLink = payload.data?.deepLink;
+            if (deepLink && deepLink !== '/') {
+              window.location.href = deepLink;
+            }
+            window.focus();
+          };
+          
+          // Auto close after 5 seconds
+          setTimeout(() => {
+            notification.close();
+          }, 5000);
+        }
+      }
+    });
+  }, []);
+
+  // Enhanced service worker registration with better error handling
+  React.useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      // Register Firebase messaging service worker
+      navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+        scope: '/'
+      })
+        .then((registration) => {
+          console.log('Firebase SW registered successfully:', registration);
+          
+          // Check for updates periodically
+          setInterval(() => {
+            registration.update();
+          }, 60000); // Check every minute
+        })
+        .catch((error) => {
+          console.error('Firebase SW registration failed:', error);
+        });
+      
+      // Also register the main service worker
+      navigator.serviceWorker.register('/sw.js', {
+        scope: '/'
+      })
+        .then((registration) => {
+          console.log('Main SW registered successfully:', registration);
+        })
+        .catch((error) => {
+          console.error('Main SW registration failed:', error);
+        });
+    }
+  }, []);
+
+  // Request notification permission on app load if not already granted
+  React.useEffect(() => {
+    if ('Notification' in window && user) {
+      if (Notification.permission === 'default') {
+        // Don't auto-request, let the banner handle it
+        console.log('Notification permission not yet requested');
+      } else if (Notification.permission === 'granted') {
+        console.log('Notification permission already granted');
+      } else {
+        console.log('Notification permission denied');
+      }
+    }
+  }, [user]);
+
+  // Handle visibility change to refresh data when app becomes visible
+  React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        // App became visible, refresh data
+        console.log('App became visible, refreshing data...');
+        // Trigger a custom event that components can listen to
+        window.dispatchEvent(new CustomEvent('app-visibility-change', {
+          detail: { visible: true }
+        }));
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user]);
+
+  // Re-initialize FCM token when app becomes active
+  React.useEffect(() => {
+    const handleAppFocus = () => {
+      if (user && 'Notification' in window && Notification.permission === 'granted') {
+        // Re-get FCM token to ensure it's still valid
+        import('./lib/firebase').then(({ getFCMToken }) => {
+          getFCMToken(user.id).catch(console.error);
+        });
+      }
+    };
+
+    window.addEventListener('focus', handleAppFocus);
+    window.addEventListener('app-visibility-change', handleAppFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleAppFocus);
+      window.removeEventListener('app-visibility-change', handleAppFocus);
+    };
+  }, [user]);
+
+  // Enhanced foreground message handling
+  React.useEffect(() => {
+    onForegroundMessage((payload) => {
+      // Handle foreground messages - show in-app notification
+      if (payload.notification) {
+        console.log('Foreground message:', payload);
+        
+        // Show browser notification even in foreground for better UX
+        if ('Notification' in window && Notification.permission === 'granted') {
+          const notification = new Notification(payload.notification.title, {
+            body: payload.notification.body,
+            icon: 'https://i.postimg.cc/rygydTNp/9.png',
+            badge: 'https://i.postimg.cc/rygydTNp/9.png',
+            data: payload.data,
+            tag: 'lawdli-foreground',
+            renotify: true
+          });
+          
+          // Handle notification click in foreground
+          notification.onclick = () => {
+            notification.close();
+            const deepLink = payload.data?.deepLink;
+            if (deepLink && deepLink !== '/') {
+              window.location.href = deepLink;
+            }
+            window.focus();
+          };
+          
+          // Auto close after 5 seconds
+          setTimeout(() => {
+            notification.close();
+          }, 5000);
         }
       }
     });

@@ -31,6 +31,29 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
     loadRequests();
     loadGroups();
     loadResponses();
+    
+    // Set up real-time subscription for requests manager
+    const subscription = supabase
+      .channel('requests-manager-realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'requests'
+      }, () => {
+        loadRequests();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'responses'
+      }, () => {
+        loadResponses();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const loadRequests = async () => {
