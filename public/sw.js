@@ -1,54 +1,40 @@
-// Service Worker for LAWDLI PWA
-const CACHE_NAME = 'lawdli-v1';
-const urlsToCache = [
-  '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
-  '/manifest.json'
-];
+// Service Worker for LAWDLI PWA - Online Only Mode
+// This service worker handles push notifications but does NOT cache resources for offline use
 
-// Install event - cache resources
+// Skip waiting and claim clients immediately
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache))
-      .then(() => self.skipWaiting())
-  );
+  console.log('Service Worker installing - Online Only Mode');
+  self.skipWaiting();
 });
 
-// Fetch event - serve from cache when offline
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Return cached version or fetch from network
-        return response || fetch(event.request);
-      })
-      .catch(() => {
-        // Return offline page if available
-        if (event.request.destination === 'document') {
-          return caches.match('/');
-        }
-      })
-  );
-});
-
-// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
+  console.log('Service Worker activating - Online Only Mode');
+  
   event.waitUntil(
+    // Clear all existing caches to prevent offline functionality
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
+          console.log('Deleting cache:', cacheName);
+          return caches.delete(cacheName);
         })
       );
-    }).then(() => self.clients.claim())
+    }).then(() => {
+      // Claim all clients immediately
+      return self.clients.claim();
+    })
   );
 });
 
-// Push notification handling
+// Do NOT intercept fetch requests - let everything go to network
+// This ensures all resources are always loaded fresh from the server
+self.addEventListener('fetch', (event) => {
+  // Let all requests go through to the network without any caching
+  // This prevents the white screen issue and ensures fresh content
+  return;
+});
+
+// Push notification handling (keep existing functionality)
 self.addEventListener('push', (event) => {
   if (event.data) {
     const data = event.data.json();
@@ -75,7 +61,7 @@ self.addEventListener('push', (event) => {
   }
 });
 
-// Notification click handling
+// Notification click handling (keep existing functionality)
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 

@@ -12,6 +12,7 @@ export default defineConfig({
     target: 'es2015',
     rollupOptions: {
       output: {
+        // Add cache busting to ensure fresh files are always loaded
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: (assetInfo) => {
@@ -27,10 +28,22 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    host: true
+    host: true,
+    // Disable caching in development
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
   },
   preview: {
     port: 4173,
-    host: true
+    host: true,
+    // Disable caching in preview
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache', 
+      'Expires': '0'
+    }
   }
 });

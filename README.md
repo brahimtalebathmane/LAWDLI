@@ -91,9 +91,17 @@ The application is pre-configured with Firebase. You only need to:
 
 ### Features
 - Real-time push notifications for new requests and responses
-- Works offline with service worker caching
+- Online-only operation (no offline caching to ensure fresh content)
 - Multi-language support (Arabic/French)
 - Admin and user role management
 - Group-based request distribution
 - Real-time push notifications via Firebase FCM
-- Offline support with service worker caching
+- PWA installable on mobile devices
+- Always loads fresh content from server
+
+## PWA Configuration
+- The app can be installed as a PWA on mobile devices
+- Push notifications work even when the app is closed
+- **Online-only mode**: No offline caching to prevent stale content issues
+- Always loads the latest version from the server
+- Supported on Android Chrome and iOS Safari (16.4+)

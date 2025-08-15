@@ -28,9 +28,17 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
+          // Unregister any existing service workers first
+          navigator.serviceWorker.getRegistrations().then((registrations) => {
+            registrations.forEach((registration) => {
+              registration.unregister();
+            });
+          }).then(() => {
+            // Register new online-only service worker
+            return navigator.serviceWorker.register('/sw.js');
+          })
             .then((registration) => {
-              console.log('SW registered: ', registration);
+              console.log('Online-only SW registered: ', registration);
               
               // Request notification permission
               if ('Notification' in window && navigator.serviceWorker) {
@@ -40,7 +48,7 @@
               }
             })
             .catch((registrationError) => {
-              console.log('SW registration failed: ', registrationError);
+              console.log('Online-only SW registration failed: ', registrationError);
             });
         });
       }

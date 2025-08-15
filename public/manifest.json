@@ -3,9 +3,10 @@
   "short_name": "LAWDLI",
   "description": "Connect admins with resource groups through real-time notifications and responses",
   "start_url": "/",
-  "display": "standalone",
+  "display": "standalone", 
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
+  "scope": "/",
   "icons": [
     {
       "src": "https://i.postimg.cc/rygydTNp/9.png",
@@ -21,5 +22,6 @@
     }
   ],
   "orientation": "portrait-primary",
-  "categories": ["productivity", "business"]
+  "categories": ["productivity", "business"],
+  "prefer_related_applications": false
 }
