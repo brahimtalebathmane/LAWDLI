@@ -165,18 +165,15 @@ const UserDashboard: React.FC = () => {
       const adminIds = admins?.map(admin => admin.id) || [];
 
       if (adminIds.length > 0) {
-        // Get current language for localization
-        const title = language === 'ar' ? 'رد جديد على الطلب' : 'Nouvelle réponse';
-        const bodyTemplate = language === 'ar' 
-          ? '{{full_name}} رد بـ "{{choice}}"'
-          : '{{full_name}} a répondu "{{choice}}"';
+        const title = t('push.new_response.title');
+        const bodyTemplate = t('push.new_response.body');
         
         const body = bodyTemplate
           .replace('{{full_name}}', user?.full_name || 'User')
           .replace('{{choice}}', responseChoice);
 
-        // Call push notification function
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-push`, {
+        // Call push notification edge function
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-push-notifications`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,

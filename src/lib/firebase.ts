@@ -2,12 +2,12 @@ import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyCAncc8um-yQBA1VzATvHAbCPOCPo5F_1E",
+  authDomain: "lawdli.firebaseapp.com",
+  projectId: "lawdli",
+  storageBucket: "lawdli.firebasestorage.app",
+  messagingSenderId: "1095350923790",
+  appId: "1:1095350923790:web:93631ae307a6ecdce5425f"
 };
 
 // Initialize Firebase
@@ -26,36 +26,48 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
 
 export { app, messaging };
 
-// Request notification permission and get FCM token
-export const requestNotificationPermission = async (userId: string) => {
+// Get FCM token for the logged-in user
+export const getFCMToken = async (userId: string) => {
   if (!messaging) {
     console.log('Messaging not supported');
     return null;
   }
 
   try {
-    const permission = await Notification.requestPermission();
+    // Register service worker
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
     
-    if (permission === 'granted') {
-      // Register service worker
-      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-      
-      // Get FCM token
-      const token = await getToken(messaging, {
-        vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
-        serviceWorkerRegistration: registration
-      });
+    // Get FCM token
+    const token = await getToken(messaging, {
+      vapidKey: 'BOPyVXW3oxnwPsk1dKk1gcTWhfREpYbNDv3YHPedB-7zIXUoHlp6otcX1ypLj068bIZnunwrbqzaeTjnzG_vyc0',
+      serviceWorkerRegistration: registration
+    });
 
-      if (token) {
-        // Save token to Supabase
-        await saveFCMToken(userId, token);
-        return token;
-      }
+    if (token) {
+      // Save token to Supabase
+      await saveFCMToken(userId, token);
+      return token;
     }
     
     return null;
   } catch (error) {
-    console.error('Error getting notification permission:', error);
+    console.error('Error getting FCM token:', error);
+    return null;
+  }
+};
+
+// Request notification permission and get FCM token
+export const requestNotificationPermission = async (userId: string) => {
+  try {
+    const permission = await Notification.requestPermission();
+    
+    if (permission === 'granted') {
+      return await getFCMToken(userId);
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error requesting notification permission:', error);
     return null;
   }
 };
@@ -65,36 +77,19 @@ const saveFCMToken = async (userId: string, token: string) => {
   try {
     const { supabase } = await import('./supabase');
     
-    // Get platform info
-    const platform = getPlatform();
-    
-    // Upsert token (insert or update if exists)
+    // Upsert token in user_tokens table (insert or update if exists)
     await supabase
-      .from('push_tokens')
+      .from('user_tokens')
       .upsert({
         user_id: userId,
-        token: token,
-        platform: platform,
-        last_seen_at: new Date().toISOString()
+        fcm_token: token,
+        created_at: new Date().toISOString()
       }, {
-        onConflict: 'token'
+        onConflict: 'user_id'
       });
       
   } catch (error) {
     console.error('Error saving FCM token:', error);
-  }
-};
-
-// Get platform information
-const getPlatform = (): string => {
-  const userAgent = navigator.userAgent.toLowerCase();
-  
-  if (/android/.test(userAgent)) {
-    return 'web-android';
-  } else if (/iphone|ipad|ipod/.test(userAgent)) {
-    return 'web-ios';
-  } else {
-    return 'web-desktop';
   }
 };
 
@@ -114,7 +109,7 @@ export const deleteFCMToken = async (userId: string) => {
     const { supabase } = await import('./supabase');
     
     await supabase
-      .from('push_tokens')
+      .from('user_tokens')
       .delete()
       .eq('user_id', userId);
       

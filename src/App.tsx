@@ -13,16 +13,17 @@ const AppRouter: React.FC = () => {
   // Handle foreground push messages
   React.useEffect(() => {
     onForegroundMessage((payload) => {
-      // Show in-app notification for foreground messages
+      // Handle foreground messages - show in-app notification
       if (payload.notification) {
-        // You can customize this to show a toast or update the notifications panel
         console.log('Foreground message:', payload);
         
-        // Optionally show browser notification even in foreground
+        // Show browser notification even in foreground for better UX
         if ('Notification' in window && Notification.permission === 'granted') {
           new Notification(payload.notification.title, {
             body: payload.notification.body,
-            icon: 'https://i.postimg.cc/rygydTNp/9.png'
+            icon: 'https://i.postimg.cc/rygydTNp/9.png',
+            badge: 'https://i.postimg.cc/rygydTNp/9.png',
+            data: payload.data
           });
         }
       }

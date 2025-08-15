@@ -79,6 +79,10 @@ const translations = {
     'push.new_response.body': '{{full_name}} رد بـ "{{choice}}"',
     'notifications.enable': 'تفعيل الإشعارات',
     'notifications.permission_denied': 'تم رفض إذن الإشعارات. يرجى تفعيلها من إعدادات المتصفح.',
+    
+    // Form labels
+    'optional': 'اختياري',
+    'imageRequired': 'مطلوب صورة واحدة على الأقل',
   },
   fr: {
     // Auth
@@ -149,6 +153,10 @@ const translations = {
     'push.new_response.body': '{{full_name}} a répondu "{{choice}}"',
     'notifications.enable': 'Activer les notifications',
     'notifications.permission_denied': 'Permission de notification refusée. Veuillez l\'activer dans les paramètres du navigateur.',
+    
+    // Form labels
+    'optional': 'Optionnel',
+    'imageRequired': 'Au moins une image est requise',
   }
 };
 

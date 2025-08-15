@@ -176,20 +176,15 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
       const userIds = [...new Set(groupMembers?.map(m => m.user_id) || [])];
 
       if (userIds.length > 0) {
-        // Get current language for localization
-        const { language } = useLanguage();
-        
-        const title = language === 'ar' ? 'طلب جديد' : 'Nouvelle demande';
-        const bodyTemplate = language === 'ar' 
-          ? 'لديك طلب جديد{{title}}' 
-          : 'Vous avez une nouvelle demande{{title}}';
+        const title = t('push.new_request.title');
+        const bodyTemplate = t('push.new_request.body');
         
         const body = request.title 
           ? bodyTemplate.replace('{{title}}', `: ${request.title}`)
           : bodyTemplate.replace('{{title}}', '');
 
-        // Call push notification function
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-push`, {
+        // Call push notification edge function
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-push-notifications`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
@@ -350,7 +345,7 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
                     value={formData.title}
                     onChange={(e) => setFormData({...formData, title: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Optional"
+                    placeholder={t('optional')}
                   />
                 </div>
 
@@ -363,7 +358,7 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
                     onChange={(e) => setFormData({...formData, description: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows={3}
-                    placeholder="Optional"
+                    placeholder={t('optional')}
                   />
                 </div>
 
@@ -378,7 +373,7 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">At least one image is required</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('imageRequired')}</p>
                 </div>
 
                 <div>
