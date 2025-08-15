@@ -36,7 +36,7 @@ const AppRouter: React.FC = () => {
         <div className="text-center">
           <img 
             src="https://i.postimg.cc/rygydTNp/9.png" 
-            alt="LAWDLI Logo" 
+            alt="لودلي | LAWDLI Logo" 
             className="h-16 w-auto mx-auto mb-4"
           />
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>

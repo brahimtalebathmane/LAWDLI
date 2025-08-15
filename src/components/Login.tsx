@@ -65,7 +65,7 @@ const Login: React.FC = () => {
               alt="LAWDLI Logo" 
               className="mx-auto h-20 w-auto mb-6"
             />
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">LAWDLI</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">لودلي | LAWDLI</h2>
             <p className="text-gray-600">{t('login')}</p>
           </div>
 

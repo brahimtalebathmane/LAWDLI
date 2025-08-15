@@ -23,7 +23,7 @@ const Layout: React.FC<LayoutProps> = ({ children, showNavigation = true }) => {
                   alt="LAWDLI Logo" 
                   className="h-10 w-auto"
                 />
-                <h1 className="text-xl font-bold text-gray-900">LAWDLI</h1>
+                <h1 className="text-xl font-bold text-gray-900">لودلي | LAWDLI</h1>
               </div>
               <LanguageToggle />
             </div>

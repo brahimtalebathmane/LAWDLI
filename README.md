@@ -1,4 +1,4 @@
-LAWDLI
+لودلي | LAWDLI
 
 ## Firebase Cloud Messaging (FCM) Integration
 

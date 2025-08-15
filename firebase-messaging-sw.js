@@ -18,7 +18,7 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   console.log('Background message received:', payload);
   
-  const notificationTitle = payload.notification?.title || 'LAWDLI';
+  const notificationTitle = payload.notification?.title || 'لودلي | LAWDLI';
   const notificationOptions = {
     body: payload.notification?.body || 'You have a new notification',
     icon: 'https://i.postimg.cc/rygydTNp/9.png',
