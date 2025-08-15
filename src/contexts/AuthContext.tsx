@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../lib/supabase';
+import { requestNotificationPermission, deleteFCMToken } from '../lib/firebase';
 
 interface AuthContextType {
   user: User | null;
@@ -43,9 +44,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = (userData: User) => {
     setUser(userData);
     localStorage.setItem('lawdli_user', JSON.stringify(userData));
+    
+    // Request notification permission after login
+    setTimeout(() => {
+      requestNotificationPermission(userData.id).catch(console.error);
+    }, 1000);
   };
 
   const logout = () => {
+    // Delete FCM token on logout
+    if (user) {
+      deleteFCMToken(user.id).catch(console.error);
+    }
     setUser(null);
     localStorage.removeItem('lawdli_user');
   };

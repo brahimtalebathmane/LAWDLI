@@ -2,12 +2,32 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { onForegroundMessage } from './lib/firebase';
 import Login from './components/Login';
 import AdminDashboard from './components/AdminDashboard';
 import UserDashboard from './components/UserDashboard';
 
 const AppRouter: React.FC = () => {
   const { user, isLoading } = useAuth();
+
+  // Handle foreground push messages
+  React.useEffect(() => {
+    onForegroundMessage((payload) => {
+      // Show in-app notification for foreground messages
+      if (payload.notification) {
+        // You can customize this to show a toast or update the notifications panel
+        console.log('Foreground message:', payload);
+        
+        // Optionally show browser notification even in foreground
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification(payload.notification.title, {
+            body: payload.notification.body,
+            icon: 'https://i.postimg.cc/rygydTNp/9.png'
+          });
+        }
+      }
+    });
+  }, []);
 
   if (isLoading) {
     return (

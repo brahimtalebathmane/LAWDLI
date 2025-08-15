@@ -87,6 +87,12 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
     setIsLoading(true);
 
     try {
+      // Validate that at least one image is provided
+      if (!formData.image) {
+        alert('At least one image is required');
+        return;
+      }
+
       let imageUrl = '';
 
       // Upload image if provided
@@ -111,8 +117,8 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
       const { data: requestData, error: requestError } = await supabase
         .from('requests')
         .insert({
-          title: formData.title,
-          description: formData.description,
+          title: formData.title || null,
+          description: formData.description || null,
           image_url: imageUrl || null,
           created_by: user?.id
         })
@@ -134,6 +140,9 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
 
         // Send notifications to group members
         await sendNotificationsToGroups(requestData, formData.selectedGroups);
+        
+        // Send push notifications
+        await sendPushNotificationsToGroups(requestData, formData.selectedGroups);
       }
 
       // Reset form and reload data
@@ -151,6 +160,58 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
       console.error('Error creating request:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const sendPushNotificationsToGroups = async (request: Request, groupIds: string[]) => {
+    try {
+      // Get all users in the selected groups
+      const { data: groupMembers, error } = await supabase
+        .from('group_members')
+        .select('user_id')
+        .in('group_id', groupIds);
+
+      if (error) throw error;
+
+      const userIds = [...new Set(groupMembers?.map(m => m.user_id) || [])];
+
+      if (userIds.length > 0) {
+        // Get current language for localization
+        const { language } = useLanguage();
+        
+        const title = language === 'ar' ? 'طلب جديد' : 'Nouvelle demande';
+        const bodyTemplate = language === 'ar' 
+          ? 'لديك طلب جديد{{title}}' 
+          : 'Vous avez une nouvelle demande{{title}}';
+        
+        const body = request.title 
+          ? bodyTemplate.replace('{{title}}', `: ${request.title}`)
+          : bodyTemplate.replace('{{title}}', '');
+
+        // Call push notification function
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-push`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            userIds,
+            title,
+            body,
+            data: {
+              request_id: request.id,
+              deepLink: `/request/${request.id}`
+            }
+          })
+        });
+
+        if (!response.ok) {
+          console.error('Failed to send push notifications');
+        }
+      }
+    } catch (error) {
+      console.error('Error sending push notifications:', error);
     }
   };
 
@@ -289,7 +350,7 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
                     value={formData.title}
                     onChange={(e) => setFormData({...formData, title: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
+                    placeholder="Optional"
                   />
                 </div>
 
@@ -302,20 +363,22 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
                     onChange={(e) => setFormData({...formData, description: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows={3}
-                    required
+                    placeholder="Optional"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('uploadImage')}
+                    {t('uploadImage')} *
                   </label>
                   <input
                     type="file"
                     accept="image/*"
                     onChange={(e) => setFormData({...formData, image: e.target.files?.[0] || null})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
                   />
+                  <p className="text-xs text-gray-500 mt-1">At least one image is required</p>
                 </div>
 
                 <div>

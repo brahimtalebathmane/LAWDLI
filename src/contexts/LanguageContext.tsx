@@ -71,6 +71,14 @@ const translations = {
     success: 'تم بنجاح',
     error: 'خطأ',
     confirm: 'تأكيد',
+    
+    // Push notifications
+    'push.new_request.title': 'طلب جديد',
+    'push.new_request.body': 'لديك طلب جديد{{title}}',
+    'push.new_response.title': 'رد جديد على الطلب',
+    'push.new_response.body': '{{full_name}} رد بـ "{{choice}}"',
+    'notifications.enable': 'تفعيل الإشعارات',
+    'notifications.permission_denied': 'تم رفض إذن الإشعارات. يرجى تفعيلها من إعدادات المتصفح.',
   },
   fr: {
     // Auth
@@ -133,6 +141,14 @@ const translations = {
     success: 'Succès',
     error: 'Erreur',
     confirm: 'Confirmer',
+    
+    // Push notifications
+    'push.new_request.title': 'Nouvelle demande',
+    'push.new_request.body': 'Vous avez une nouvelle demande{{title}}',
+    'push.new_response.title': 'Nouvelle réponse',
+    'push.new_response.body': '{{full_name}} a répondu "{{choice}}"',
+    'notifications.enable': 'Activer les notifications',
+    'notifications.permission_denied': 'Permission de notification refusée. Veuillez l\'activer dans les paramètres du navigateur.',
   }
 };
 

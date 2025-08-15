@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import LanguageToggle from './LanguageToggle';
+import NotificationPermissionBanner from './NotificationPermissionBanner';
 
 interface LayoutProps {
   children: ReactNode;
@@ -30,6 +31,7 @@ const Layout: React.FC<LayoutProps> = ({ children, showNavigation = true }) => {
         </header>
       )}
       <main className="flex-1">
+        <NotificationPermissionBanner />
         {children}
       </main>
     </div>

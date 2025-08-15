@@ -136,6 +136,9 @@ const UserDashboard: React.FC = () => {
             message: `${user.full_name} responded "${response}" to "${request.title}"`,
             link: `/admin/requests/${requestId}`
           });
+        
+        // Send push notification to admin
+        await sendPushNotificationToAdmin(request, response);
       }
 
       // Reload data
@@ -146,6 +149,57 @@ const UserDashboard: React.FC = () => {
       alert('Error sending response');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const sendPushNotificationToAdmin = async (request: Request, responseChoice: string) => {
+    try {
+      // Get all admin users
+      const { data: admins, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('role', 'admin');
+
+      if (error) throw error;
+
+      const adminIds = admins?.map(admin => admin.id) || [];
+
+      if (adminIds.length > 0) {
+        // Get current language for localization
+        const title = language === 'ar' ? 'رد جديد على الطلب' : 'Nouvelle réponse';
+        const bodyTemplate = language === 'ar' 
+          ? '{{full_name}} رد بـ "{{choice}}"'
+          : '{{full_name}} a répondu "{{choice}}"';
+        
+        const body = bodyTemplate
+          .replace('{{full_name}}', user?.full_name || 'User')
+          .replace('{{choice}}', responseChoice);
+
+        // Call push notification function
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-push`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            userIds: adminIds,
+            title,
+            body,
+            data: {
+              request_id: request.id,
+              user_id: user?.id,
+              deepLink: `/admin/requests/${request.id}`
+            }
+          })
+        });
+
+        if (!response.ok) {
+          console.error('Failed to send push notification to admin');
+        }
+      }
+    } catch (error) {
+      console.error('Error sending push notification to admin:', error);
     }
   };
 
