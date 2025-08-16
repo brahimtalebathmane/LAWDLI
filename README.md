@@ -102,6 +102,11 @@ The application is pre-configured with Firebase. You only need to:
 ## PWA Configuration
 - The app can be installed as a PWA on mobile devices
 - Push notifications work even when the app is closed
-- **Online-only mode**: No offline caching to prevent stale content issues
+- **Strict Online-Only Mode**: 
+  - NO offline caching whatsoever
+  - ALL resources always loaded fresh from server
+  - Service workers ONLY handle push notifications
+  - Prevents any stale content issues
+  - Requires active internet connection
 - Always loads the latest version from the server
 - Supported on Android Chrome and iOS Safari (16.4+)

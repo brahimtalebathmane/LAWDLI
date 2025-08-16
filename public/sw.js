@@ -1,40 +1,47 @@
-// Service Worker for LAWDLI PWA - Online Only Mode
-// This service worker handles push notifications but does NOT cache resources for offline use
+// Service Worker for LAWDLI PWA - Strict Online Only Mode
+// This service worker ONLY handles push notifications and prevents ALL caching
 
 // Skip waiting and claim clients immediately
 self.addEventListener('install', (event) => {
-  console.log('Service Worker installing - Online Only Mode');
+  console.log('Service Worker installing - Strict Online Only Mode');
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker activating - Online Only Mode');
+  console.log('Service Worker activating - Strict Online Only Mode');
   
   event.waitUntil(
-    // Clear all existing caches to prevent offline functionality
+    // Aggressively clear ALL caches to ensure online-only operation
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          console.log('Deleting cache:', cacheName);
+          console.log('Force deleting cache for online-only mode:', cacheName);
           return caches.delete(cacheName);
         })
       );
     }).then(() => {
-      // Claim all clients immediately
+      // Claim all clients and force refresh to ensure no cached content
       return self.clients.claim();
+    }).then(() => {
+      // Force reload all clients to ensure fresh content
+      return self.clients.matchAll().then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: 'FORCE_RELOAD_FOR_ONLINE_MODE' });
+        });
+      });
     })
   );
 });
 
-// Do NOT intercept fetch requests - let everything go to network
-// This ensures all resources are always loaded fresh from the server
+// CRITICAL: Do NOT intercept ANY fetch requests
+// This ensures ALL resources always go to network for fresh content
 self.addEventListener('fetch', (event) => {
-  // Let all requests go through to the network without any caching
-  // This prevents the white screen issue and ensures fresh content
+  // Explicitly do nothing - let ALL requests go directly to network
+  // No caching, no interception, no offline functionality
   return;
 });
 
-// Push notification handling (keep existing functionality)
+// ONLY handle push notifications - no other service worker functionality
 self.addEventListener('push', (event) => {
   if (event.data) {
     const data = event.data.json();
@@ -61,7 +68,7 @@ self.addEventListener('push', (event) => {
   }
 });
 
-// Notification click handling (keep existing functionality)
+// Handle notification clicks - navigate to app
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
@@ -70,17 +77,22 @@ self.addEventListener('notificationclick', (event) => {
     
     event.waitUntil(
       clients.matchAll({ type: 'window' }).then((clientList) => {
-        // Check if there's already a window/tab open with the target URL
         for (const client of clientList) {
           if (client.url === url && 'focus' in client) {
             return client.focus();
           }
         }
-        // If no existing window/tab, open a new one
         if (clients.openWindow) {
           return clients.openWindow(url);
         }
       })
     );
+  }
+});
+
+// Listen for messages from the main app
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
   }
 });

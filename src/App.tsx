@@ -13,18 +13,28 @@ const AppRouter: React.FC = () => {
   // Register Firebase messaging service worker
   React.useEffect(() => {
     if ('serviceWorker' in navigator && import.meta.env.VITE_DISABLE_FCM_SW_REGISTRATION !== 'true') {
+      // Register Firebase messaging service worker for notifications only
       navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
         .then(registration => {
-          console.log('Firebase SW registered:', registration);
+          console.log('Firebase messaging SW registered (notifications only):', registration);
 
-          // Periodically check for updates
+          // Check for updates periodically to ensure fresh service worker
           setInterval(() => registration.update(), 60000);
         })
         .catch(err => {
           if (!err.message?.includes('StackBlitz')) {
-            console.error('Firebase SW registration failed:', err);
+            console.error('Firebase messaging SW registration failed:', err);
           }
         });
+      
+      // Listen for service worker messages
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'FORCE_RELOAD_FOR_ONLINE_MODE') {
+          console.log('Service worker requesting reload for online-only mode');
+          // Force reload to ensure fresh content
+          window.location.reload();
+        }
+      });
     }
   }, []);
 
@@ -53,7 +63,7 @@ const AppRouter: React.FC = () => {
     });
   }, []);
 
-  // Re-get FCM token when app becomes active
+  // Re-get FCM token when app becomes active (online-only refresh)
   React.useEffect(() => {
     const handleFocus = () => {
       if (user && 'Notification' in window && Notification.permission === 'granted') {
@@ -64,10 +74,11 @@ const AppRouter: React.FC = () => {
     return () => window.removeEventListener('focus', handleFocus);
   }, [user]);
 
-  // Visibility change to refresh data
+  // Visibility change to refresh data (ensures fresh content in online-only mode)
   React.useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && user) {
+        // Force refresh data when app becomes visible to ensure fresh content
         window.dispatchEvent(new CustomEvent('app-visibility-change', { detail: { visible: true } }));
       }
     };

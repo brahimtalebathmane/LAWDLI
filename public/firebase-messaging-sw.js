@@ -1,8 +1,10 @@
-// Firebase messaging service worker
+// Firebase messaging service worker - NOTIFICATIONS ONLY
+// This worker ONLY handles FCM notifications, NO caching allowed
+
 importScripts('https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.22.1/firebase-messaging-compat.js');
 
-// Initialize Firebase in service worker
+// Initialize Firebase ONLY for messaging
 firebase.initializeApp({
   apiKey: "AIzaSyCAncc8um-yQBA1VzATvHAbCPOCPo5F_1E",
   authDomain: "lawdli.firebaseapp.com",
@@ -14,7 +16,7 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Handle background messages
+// ONLY handle background FCM messages - no other functionality
 messaging.onBackgroundMessage((payload) => {
   console.log('Background message received:', payload);
   
@@ -35,7 +37,6 @@ messaging.onBackgroundMessage((payload) => {
         icon: 'https://i.postimg.cc/rygydTNp/9.png'
       }
     ],
-    // PWA specific options
     renotify: true,
     sticky: false
   };
@@ -43,7 +44,7 @@ messaging.onBackgroundMessage((payload) => {
   return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
-// Handle notification clicks
+// Handle FCM notification clicks
 self.addEventListener('notificationclick', (event) => {
   console.log('Notification clicked:', event);
   
@@ -54,12 +55,10 @@ self.addEventListener('notificationclick', (event) => {
   
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Check if there's already a window/tab open
       for (const client of clientList) {
         if (client.url === fullUrl && 'focus' in client) {
           return client.focus();
         }
-        // If any LAWDLI window is open, focus it and navigate
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           client.postMessage({
             type: 'NOTIFICATION_CLICK',
@@ -69,7 +68,6 @@ self.addEventListener('notificationclick', (event) => {
         }
       }
       
-      // If no existing window/tab, open a new one
       if (clients.openWindow) {
         return clients.openWindow(fullUrl);
       }
@@ -77,7 +75,7 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Handle push events for better mobile compatibility
+// Handle direct push events (mobile compatibility)
 self.addEventListener('push', (event) => {
   console.log('Push event received:', event);
   
@@ -107,7 +105,6 @@ self.addEventListener('push', (event) => {
       );
     } catch (error) {
       console.error('Error parsing push data:', error);
-      // Fallback notification
       event.waitUntil(
         self.registration.showNotification('لودلي | LAWDLI', {
           body: 'You have a new notification',
@@ -118,3 +115,6 @@ self.addEventListener('push', (event) => {
     }
   }
 });
+
+// CRITICAL: Do NOT handle fetch events - no caching allowed
+// This ensures all requests go to network for online-only operation
