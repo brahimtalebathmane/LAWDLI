@@ -37,7 +37,10 @@ const UserDashboard: React.FC = () => {
           console.log('New request group assignment detected, reloading...');
           loadUserRequests();
         })
-        .on('postgres_changes', {
+        .subscribe();
+    }
+  }, [user]);
+
   const loadUserRequests = async () => {
     if (!user) return;
 
