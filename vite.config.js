@@ -19,9 +19,9 @@ export default defineConfig({
           const info = assetInfo.name.split('.');
           const ext = info[info.length - 1];
           if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
-            return `assets/[name]-[hash][extname]`;
+            return assets/[name]-[hash][extname];
           }
-          return `assets/[name]-[hash][extname]`;
+          return assets/[name]-[hash][extname];
         }
       }
     }
@@ -36,24 +36,10 @@ export default defineConfig({
       'Expires': '0',
       'Last-Modified': new Date().toUTCString()
     }
-    // Disable ALL caching in development for online-only mode
-    headers: {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-      'Last-Modified': new Date().toUTCString()
-    }
   },
   preview: {
     port: 4173,
     host: true,
-    // Disable ALL caching in preview for online-only mode
-    headers: {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache', 
-      'Expires': '0',
-      'Last-Modified': new Date().toUTCString()
-    }
     // Disable ALL caching in preview for online-only mode
     headers: {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
