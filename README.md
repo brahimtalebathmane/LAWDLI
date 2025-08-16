@@ -57,9 +57,24 @@ For the push notification edge function to work, you need to set the FCM server 
 FCM_SERVER_KEY=your_fcm_server_key_here
 ```
 
-You can get the FCM server key from:
-1. Firebase Console → Project Settings → Cloud Messaging
-2. Copy the "Server key" (legacy) value
+**CRITICAL: FCM Server Key Setup**
+
+1. **Get FCM Server Key:**
+   - Go to [Firebase Console](https://console.firebase.google.com/)
+   - Select your project: `lawdli`
+   - Go to Project Settings → Cloud Messaging
+   - Copy the "Server key" (legacy) value
+
+2. **Set in Supabase:**
+   - Go to your Supabase project dashboard
+   - Navigate to Edge Functions → Environment Variables
+   - Add: `FCM_SERVER_KEY` = `your_server_key_here`
+   - Deploy the edge function: `supabase functions deploy send-push-notifications`
+
+3. **Verify Setup:**
+   - Check browser console for "FCM Server Key status: Present"
+   - Test notifications by responding to requests
+   - Check Edge Function logs in Supabase dashboard
 
 ## Setup Instructions
 
