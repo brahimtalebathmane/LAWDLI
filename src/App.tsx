@@ -93,7 +93,7 @@ const AppRouter: React.FC = () => {
   React.useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && user) {
-        // Force refresh data when app becomes visible to ensure fresh content
+        // Refresh data when app becomes visible to ensure fresh content
         window.dispatchEvent(new CustomEvent('app-visibility-change', { detail: { visible: true } }));
       }
     };

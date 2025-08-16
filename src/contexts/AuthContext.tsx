@@ -29,14 +29,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     // Check for stored user on app load
-    const storedUser = localStorage.getItem('lawdli_user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error('Error parsing stored user:', error);
-        localStorage.removeItem('lawdli_user');
+    try {
+      const storedUser = localStorage.getItem('lawdli_user');
+      if (storedUser && storedUser !== 'null' && storedUser !== 'undefined') {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          if (parsedUser && typeof parsedUser === 'object' && parsedUser.id) {
+            setUser(parsedUser);
+          } else {
+            // Invalid user data, clear it
+            localStorage.removeItem('lawdli_user');
+          }
+        } catch (error) {
+          console.error('Error parsing stored user:', error);
+          localStorage.removeItem('lawdli_user');
+        }
       }
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
+      // Continue without stored user if localStorage is not available
     }
     setIsLoading(false);
   }, []);

@@ -59,12 +59,22 @@ const NotificationPermissionBanner: React.FC = () => {
   const handleDismiss = () => {
     setShowBanner(false);
     // Remember dismissal for this session
-    sessionStorage.setItem('notification_banner_dismissed', 'true');
+    try {
+      sessionStorage.setItem('notification_banner_dismissed', 'true');
+    } catch (error) {
+      console.error('Error saving to sessionStorage:', error);
+      // Continue without saving dismissal state
+    }
   };
 
   // Don't show if dismissed in this session
-  if (sessionStorage.getItem('notification_banner_dismissed')) {
-    return null;
+  try {
+    if (sessionStorage.getItem('notification_banner_dismissed')) {
+      return null;
+    }
+  } catch (error) {
+    console.error('Error accessing sessionStorage:', error);
+    // Continue to show banner if sessionStorage is not available
   }
 
   if (!showBanner || !user) {

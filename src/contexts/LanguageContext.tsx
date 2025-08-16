@@ -178,15 +178,29 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
   const [language, setLanguageState] = useState<Language>('ar');
 
   useEffect(() => {
-    const storedLang = localStorage.getItem('lawdli_language') as Language;
-    if (storedLang && (storedLang === 'ar' || storedLang === 'fr')) {
-      setLanguageState(storedLang);
+    try {
+      const storedLang = localStorage.getItem('lawdli_language') as Language;
+      if (storedLang && (storedLang === 'ar' || storedLang === 'fr')) {
+        setLanguageState(storedLang);
+      } else {
+        // Initialize with default language if not set or invalid
+        localStorage.setItem('lawdli_language', 'ar');
+        setLanguageState('ar');
+      }
+    } catch (error) {
+      console.error('Error accessing localStorage for language:', error);
+      // Use default language if localStorage is not available
+      setLanguageState('ar');
     }
   }, []);
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
-    localStorage.setItem('lawdli_language', lang);
+    try {
+      localStorage.setItem('lawdli_language', lang);
+    } catch (error) {
+      console.error('Error saving language to localStorage:', error);
+    }
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
   };
