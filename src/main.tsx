@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && import.meta.env.VITE_DISABLE_FCM_SW_REGISTRATION !== 'true') {
   // Register Firebase messaging service worker
   navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
     .then((registration) => {
@@ -28,7 +28,9 @@ if ('serviceWorker' in navigator) {
       });
     })
     .catch((error) => {
-      console.error('Firebase SW registration failed in main.tsx:', error);
+      if (!error.message?.includes('StackBlitz')) {
+        console.error('Firebase SW registration failed in main.tsx:', error);
+      }
     });
 }
 

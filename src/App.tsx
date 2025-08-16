@@ -12,7 +12,7 @@ const AppRouter: React.FC = () => {
 
   // Register Firebase messaging service worker
   React.useEffect(() => {
-    if ('serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator && import.meta.env.VITE_DISABLE_FCM_SW_REGISTRATION !== 'true') {
       navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
         .then(registration => {
           console.log('Firebase SW registered:', registration);
@@ -20,7 +20,11 @@ const AppRouter: React.FC = () => {
           // Periodically check for updates
           setInterval(() => registration.update(), 60000);
         })
-        .catch(err => console.error('Firebase SW registration failed:', err));
+        .catch(err => {
+          if (!err.message?.includes('StackBlitz')) {
+            console.error('Firebase SW registration failed:', err);
+          }
+        });
     }
   }, []);
 
