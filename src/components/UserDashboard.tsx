@@ -38,21 +38,6 @@ const UserDashboard: React.FC = () => {
           loadUserRequests();
         })
         .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`
-        }, () => {
-          loadUserRequests();
-        })
-        .subscribe();
-
-      return () => {
-        requestsSubscription.unsubscribe();
-      };
-    }
-  }, [user]);
-
   const loadUserRequests = async () => {
     if (!user) return;
 

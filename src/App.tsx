@@ -13,28 +13,10 @@ const AppRouter: React.FC = () => {
   // Register Firebase messaging service worker
   React.useEffect(() => {
     if ('serviceWorker' in navigator && import.meta.env.VITE_DISABLE_FCM_SW_REGISTRATION !== 'true') {
-      // Register Firebase messaging service worker for notifications only (online-only mode)
+      // Register Firebase messaging service worker for notifications only
       navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
         .then(registration => {
-          console.log('Firebase messaging SW registered (online-only):', registration);
-
-          // Check for updates periodically to ensure fresh service worker (online-only)
-          setInterval(() => {
-            registration.update();
-          }, 60000);
-
-          // Listen for service worker updates and force reload for fresh content
-          registration.addEventListener('updatefound', () => {
-            const newWorker = registration.installing;
-            if (newWorker) {
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  console.log('Firebase messaging SW updated, reloading for fresh content...');
-                  window.location.reload();
-                }
-              });
-            }
-          });
+          console.log('Firebase messaging SW registered:', registration);
         })
         .catch(err => {
           if (!err.message?.includes('StackBlitz')) {
@@ -44,10 +26,13 @@ const AppRouter: React.FC = () => {
       
       // Listen for service worker messages
       navigator.serviceWorker.addEventListener('message', (event) => {
-        // Handle notification clicks and deep links
+        // Handle notification clicks and deep links without reload
         if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
           const deepLink = event.data.deepLink;
-          if (deepLink && deepLink !== '/') window.location.href = deepLink;
+          if (deepLink && deepLink !== '/') {
+            // Navigate without reload
+            window.history.pushState({}, '', deepLink);
+          }
         }
       });
     }
@@ -87,18 +72,6 @@ const AppRouter: React.FC = () => {
     };
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [user]);
-
-  // Visibility change to refresh data (ensures fresh content in online-only mode)
-  React.useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && user) {
-        // Refresh data when app becomes visible to ensure fresh content
-        window.dispatchEvent(new CustomEvent('app-visibility-change', { detail: { visible: true } }));
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [user]);
 
   if (isLoading) {

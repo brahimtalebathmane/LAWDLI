@@ -11,24 +11,17 @@ self.addEventListener('activate', (event) => {
   console.log('Service Worker activating - Strict Online Only Mode');
   
   event.waitUntil(
-    // Aggressively clear ALL caches to ensure online-only operation
+    // Clear ALL caches to ensure online-only operation
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          console.log('Force deleting cache for online-only mode:', cacheName);
+          console.log('Deleting cache for online-only mode:', cacheName);
           return caches.delete(cacheName);
         })
       );
     }).then(() => {
-      // Claim all clients and force refresh to ensure no cached content
+      // Claim all clients without forcing refresh
       return self.clients.claim();
-    }).then(() => {
-      // Force reload all clients to ensure fresh content
-      return self.clients.matchAll().then((clients) => {
-        clients.forEach((client) => {
-          client.postMessage({ type: 'FORCE_RELOAD_FOR_ONLINE_MODE' });
-        });
-      });
     })
   );
 });
