@@ -26,6 +26,19 @@ if ('serviceWorker' in navigator && import.meta.env.VITE_DISABLE_FCM_SW_REGISTRA
           });
         }
       });
+
+      // Listen for service worker updates and force reload for fresh content
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('Firebase messaging SW updated, reloading for fresh content...');
+              window.location.reload();
+            }
+          });
+        }
+      });
     })
     .catch((error) => {
       if (!error.message?.includes('StackBlitz')) {

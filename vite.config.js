@@ -36,10 +36,24 @@ export default defineConfig({
       'Expires': '0',
       'Last-Modified': new Date().toUTCString()
     }
+    // Disable ALL caching in development for online-only mode
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Last-Modified': new Date().toUTCString()
+    }
   },
   preview: {
     port: 4173,
     host: true,
+    // Disable ALL caching in preview for online-only mode
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache', 
+      'Expires': '0',
+      'Last-Modified': new Date().toUTCString()
+    }
     // Disable ALL caching in preview for online-only mode
     headers: {
       'Cache-Control': 'no-cache, no-store, must-revalidate',

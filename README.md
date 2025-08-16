@@ -91,7 +91,12 @@ The application is pre-configured with Firebase. You only need to:
 
 ### Features
 - Real-time push notifications for new requests and responses
-- Online-only operation (no offline caching to ensure fresh content)
+- **Strict Online-Only Mode**: 
+  - NO offline caching whatsoever
+  - ALL resources always loaded fresh from server
+  - Service workers ONLY handle push notifications
+  - Prevents any stale content issues
+  - Requires active internet connection
 - Multi-language support (Arabic/French)
 - Admin and user role management
 - Group-based request distribution
@@ -103,6 +108,12 @@ The application is pre-configured with Firebase. You only need to:
 - The app can be installed as a PWA on mobile devices
 - Push notifications work even when the app is closed
 - **Strict Online-Only Mode**: 
+  - NO offline caching whatsoever
+  - ALL resources always loaded fresh from server
+  - Service workers ONLY handle push notifications
+  - Prevents any stale content issues
+  - Requires active internet connection
+- Always loads the latest version from the server
   - NO offline caching whatsoever
   - ALL resources always loaded fresh from server
   - Service workers ONLY handle push notifications

@@ -13,13 +13,28 @@ const AppRouter: React.FC = () => {
   // Register Firebase messaging service worker
   React.useEffect(() => {
     if ('serviceWorker' in navigator && import.meta.env.VITE_DISABLE_FCM_SW_REGISTRATION !== 'true') {
-      // Register Firebase messaging service worker for notifications only
+      // Register Firebase messaging service worker for notifications only (online-only mode)
       navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
         .then(registration => {
-          console.log('Firebase messaging SW registered (notifications only):', registration);
+          console.log('Firebase messaging SW registered (online-only):', registration);
 
-          // Check for updates periodically to ensure fresh service worker
-          setInterval(() => registration.update(), 60000);
+          // Check for updates periodically to ensure fresh service worker (online-only)
+          setInterval(() => {
+            registration.update();
+          }, 60000);
+
+          // Listen for service worker updates and force reload for fresh content
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  console.log('Firebase messaging SW updated, reloading for fresh content...');
+                  window.location.reload();
+                }
+              });
+            }
+          });
         })
         .catch(err => {
           if (!err.message?.includes('StackBlitz')) {
@@ -29,10 +44,10 @@ const AppRouter: React.FC = () => {
       
       // Listen for service worker messages
       navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'FORCE_RELOAD_FOR_ONLINE_MODE') {
-          console.log('Service worker requesting reload for online-only mode');
-          // Force reload to ensure fresh content
-          window.location.reload();
+        // Handle notification clicks and deep links
+        if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
+          const deepLink = event.data.deepLink;
+          if (deepLink && deepLink !== '/') window.location.href = deepLink;
         }
       });
     }
