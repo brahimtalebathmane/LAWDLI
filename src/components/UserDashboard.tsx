@@ -158,6 +158,8 @@ const UserDashboard: React.FC = () => {
 
   const sendPushNotificationToAdmin = async (request: Request, responseChoice: string) => {
     try {
+      console.log('Sending push notification to admin for response:', responseChoice);
+      
       // Get all admin users
       const { data: admins, error } = await supabase
         .from('users')
@@ -167,6 +169,7 @@ const UserDashboard: React.FC = () => {
       if (error) throw error;
 
       const adminIds = admins?.map(admin => admin.id) || [];
+      console.log('Admin IDs for notification:', adminIds);
 
       if (adminIds.length > 0) {
         const title = t('push.new_response.title');
@@ -175,6 +178,8 @@ const UserDashboard: React.FC = () => {
         const body = bodyTemplate
           .replace('{{full_name}}', user?.full_name || 'User')
           .replace('{{choice}}', responseChoice);
+
+        console.log('Sending admin notification:', { title, body, adminIds });
 
         // Call push notification edge function
         const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-push-notifications`, {
@@ -195,9 +200,16 @@ const UserDashboard: React.FC = () => {
           })
         });
 
+        const result = await response.json();
+        console.log('Admin notification response:', result);
+        
         if (!response.ok) {
-          console.error('Failed to send push notification to admin');
+          console.error('Failed to send push notification to admin:', result);
+        } else {
+          console.log('Admin notification sent successfully:', result);
         }
+      } else {
+        console.log('No admin users found for notification');
       }
     } catch (error) {
       console.error('Error sending push notification to admin:', error);

@@ -40,7 +40,9 @@ const AppRouter: React.FC = () => {
 
   // Handle foreground push messages
   React.useEffect(() => {
+    console.log('Setting up foreground message handler');
     onForegroundMessage((payload) => {
+      console.log('Foreground message received:', payload);
       if (payload.notification && 'Notification' in window && Notification.permission === 'granted') {
         const notification = new Notification(payload.notification.title, {
           body: payload.notification.body,
@@ -48,7 +50,9 @@ const AppRouter: React.FC = () => {
           badge: 'https://i.postimg.cc/rygydTNp/9.png',
           data: payload.data,
           tag: 'lawdli-foreground',
-          renotify: true
+          renotify: true,
+          requireInteraction: false,
+          vibrate: [200, 100, 200]
         });
 
         notification.onclick = () => {
@@ -59,6 +63,8 @@ const AppRouter: React.FC = () => {
         };
 
         setTimeout(() => notification.close(), 5000);
+      } else {
+        console.log('Cannot show foreground notification - permission not granted or no notification data');
       }
     });
   }, []);

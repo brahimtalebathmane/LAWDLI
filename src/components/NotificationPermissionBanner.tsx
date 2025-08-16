@@ -32,20 +32,28 @@ const NotificationPermissionBanner: React.FC = () => {
     
     setIsLoading(true);
     try {
+      console.log('Requesting notification permission...');
       const token = await requestNotificationPermission(user.id);
       if (token) {
-        console.log('Notification permission granted and token saved');
+        console.log('Notification permission granted and token saved:', token.substring(0, 20) + '...');
         setShowBanner(false);
         // Test notification to confirm it's working
         if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification('لودلي | LAWDLI', {
+          const testNotification = new Notification('لودلي | LAWDLI', {
             body: 'Notifications are now enabled!',
             icon: 'https://i.postimg.cc/rygydTNp/9.png',
-            tag: 'test-notification'
+            tag: 'test-notification',
+            requireInteraction: false,
+            vibrate: [200, 100, 200]
           });
+          
+          setTimeout(() => {
+            testNotification.close();
+          }, 5000);
         }
       } else {
         // Permission was denied, show different message
+        console.log('Notification permission denied or failed');
         alert(t('notifications.permission_denied'));
       }
     } catch (error) {

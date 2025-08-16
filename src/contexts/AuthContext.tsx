@@ -56,18 +56,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(userData);
     localStorage.setItem('lawdli_user', JSON.stringify(userData));
     
-    // Request notification permission and get FCM token after login
+    // Request notification permission and get FCM token after login with delay
     setTimeout(() => {
-      if ('Notification' in window) {
+      if ('Notification' in window && 'serviceWorker' in navigator) {
+        console.log('Current notification permission:', Notification.permission);
+        
         if (Notification.permission === 'granted') {
-          // Already granted, just get the token
-          getFCMToken(userData.id).catch(console.error);
+          // Already granted, get the token
+          getFCMToken(userData.id).then(token => {
+            if (token) {
+              console.log('FCM token obtained after login');
+            } else {
+              console.log('Failed to get FCM token after login');
+            }
+          }).catch(console.error);
         } else if (Notification.permission === 'default') {
-          // Request permission
-          requestNotificationPermission(userData.id).catch(console.error);
+          // Will be handled by NotificationPermissionBanner
+          console.log('Notification permission not yet requested');
         }
       }
-    }, 1000);
+    }, 2000); // Increased delay to ensure service worker is ready
   };
 
   const logout = () => {

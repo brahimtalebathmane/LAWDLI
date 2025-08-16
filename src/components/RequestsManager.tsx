@@ -188,6 +188,8 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
 
   const sendPushNotificationsToGroups = async (request: Request, groupIds: string[]) => {
     try {
+      console.log('Sending push notifications to groups:', groupIds);
+      
       // Get all users in the selected groups
       const { data: groupMembers, error } = await supabase
         .from('group_members')
@@ -197,6 +199,7 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
       if (error) throw error;
 
       const userIds = [...new Set(groupMembers?.map(m => m.user_id) || [])];
+      console.log('Target user IDs for notifications:', userIds);
 
       if (userIds.length > 0) {
         const title = t('push.new_request.title');
@@ -205,6 +208,8 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
         const body = request.title 
           ? bodyTemplate.replace('{{title}}', `: ${request.title}`)
           : bodyTemplate.replace('{{title}}', '');
+
+        console.log('Sending push notification:', { title, body, userIds });
 
         // Call push notification edge function
         const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-push-notifications`, {
@@ -224,9 +229,16 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
           })
         });
 
+        const result = await response.json();
+        console.log('Push notification response:', result);
+        
         if (!response.ok) {
-          console.error('Failed to send push notifications');
+          console.error('Failed to send push notifications:', result);
+        } else {
+          console.log('Push notifications sent successfully:', result);
         }
+      } else {
+        console.log('No users found in selected groups for notifications');
       }
     } catch (error) {
       console.error('Error sending push notifications:', error);

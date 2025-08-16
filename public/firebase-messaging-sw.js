@@ -26,19 +26,20 @@ messaging.onBackgroundMessage((payload) => {
     icon: 'https://i.postimg.cc/rygydTNp/9.png',
     badge: 'https://i.postimg.cc/rygydTNp/9.png',
     data: payload.data || {},
-    requireInteraction: false,
+    requireInteraction: true,
     silent: false,
-    vibrate: [200, 100, 200],
+    vibrate: [200, 100, 200, 100, 200],
     tag: 'lawdli-notification',
     actions: [
       {
         action: 'open',
-        title: 'Open App',
+        title: 'فتح التطبيق',
         icon: 'https://i.postimg.cc/rygydTNp/9.png'
       }
     ],
     renotify: true,
-    sticky: false
+    sticky: false,
+    timestamp: Date.now()
   };
 
   return self.registration.showNotification(notificationTitle, notificationOptions);
@@ -54,7 +55,11 @@ self.addEventListener('notificationclick', (event) => {
   const fullUrl = self.location.origin + deepLink;
   
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    clients.matchAll({ 
+      type: 'window', 
+      includeUncontrolled: true 
+    }).then((clientList) => {
+      // Try to focus existing window first
       for (const client of clientList) {
         if (client.url === fullUrl && 'focus' in client) {
           return client.focus();
@@ -68,6 +73,7 @@ self.addEventListener('notificationclick', (event) => {
         }
       }
       
+      // Open new window if no existing window found
       if (clients.openWindow) {
         return clients.openWindow(fullUrl);
       }
@@ -82,19 +88,23 @@ self.addEventListener('push', (event) => {
   if (event.data) {
     try {
       const data = event.data.json();
+      console.log('Push data:', data);
+      
       const options = {
         body: data.body || data.message || 'You have a new notification',
         icon: 'https://i.postimg.cc/rygydTNp/9.png',
         badge: 'https://i.postimg.cc/rygydTNp/9.png',
-        vibrate: [200, 100, 200],
+        vibrate: [200, 100, 200, 100, 200],
         data: data.data || { deepLink: '/' },
         tag: 'lawdli-push',
         renotify: true,
-        requireInteraction: false,
+        requireInteraction: true,
+        silent: false,
+        timestamp: Date.now(),
         actions: [
           {
             action: 'open',
-            title: 'Open',
+            title: 'فتح',
             icon: 'https://i.postimg.cc/rygydTNp/9.png'
           }
         ]
@@ -109,11 +119,19 @@ self.addEventListener('push', (event) => {
         self.registration.showNotification('لودلي | LAWDLI', {
           body: 'You have a new notification',
           icon: 'https://i.postimg.cc/rygydTNp/9.png',
-          badge: 'https://i.postimg.cc/rygydTNp/9.png'
+          badge: 'https://i.postimg.cc/rygydTNp/9.png',
+          vibrate: [200, 100, 200],
+          requireInteraction: true,
+          timestamp: Date.now()
         })
       );
     }
   }
+});
+
+// Handle notification close events
+self.addEventListener('notificationclose', (event) => {
+  console.log('Notification closed:', event.notification.tag);
 });
 
 // CRITICAL: Do NOT handle fetch events - no caching allowed
