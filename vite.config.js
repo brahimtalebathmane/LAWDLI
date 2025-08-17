@@ -8,11 +8,13 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    minify: 'esbuild',
+    minify: 'terser',
     target: 'es2015',
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        // Add cache busting to ensure fresh files are always loaded
+        // Optimize chunk splitting for better caching
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: (assetInfo) => {
@@ -22,16 +24,29 @@ export default defineConfig({
             return `assets/[name]-[hash][extname]`;
           }
           return `assets/[name]-[hash][extname]`;
+        },
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          supabase: ['@supabase/supabase-js'],
+          router: ['react-router-dom'],
+          icons: ['lucide-react']
         }
       }
     }
   },
   server: {
     port: 5173,
-    host: true
+    host: true,
+    hmr: {
+      overlay: false
+    }
   },
   preview: {
     port: 4173,
     host: true
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', '@supabase/supabase-js', 'react-router-dom', 'lucide-react'],
+    exclude: ['@vite/client', '@vite/env']
   }
 });

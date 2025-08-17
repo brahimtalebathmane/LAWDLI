@@ -3,9 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="https://i.postimg.cc/rygydTNp/9.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
     <meta name="theme-color" content="#2563eb" />
     <meta name="description" content="LAWDLI - Connect admins with resource groups through real-time notifications" />
+    
+    <!-- Performance optimizations -->
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="msapplication-tap-highlight" content="no" />
+    <link rel="dns-prefetch" href="https://cdn.onesignal.com" />
+    <link rel="preconnect" href="https://cdn.onesignal.com" crossorigin />
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
@@ -20,6 +26,7 @@
     <meta name="apple-mobile-web-app-title" content="LAWDLI" />
     
     <!-- OneSignal SDK -->
+    <link rel="preload" href="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" as="script" />
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     
     <title>لودلي | LAWDLI - Resource Group Communication</title>
@@ -31,29 +38,35 @@
     <!-- Service Worker Registration -->
     <script>
       if ('serviceWorker' in navigator) {
+        // Optimize service worker registration
         window.addEventListener('load', () => {
-          // Unregister any existing service workers first
-          navigator.serviceWorker.getRegistrations().then((registrations) => {
-            registrations.forEach((registration) => {
-              registration.unregister();
-            });
-          }).then(() => {
-            // Register new online-only service worker
-            return navigator.serviceWorker.register('/sw.js');
-          })
+          requestIdleCallback(() => {
+            // Unregister any existing service workers first
+            navigator.serviceWorker.getRegistrations().then((registrations) => {
+              registrations.forEach((registration) => {
+                registration.unregister();
+              });
+            }).then(() => {
+              // Register new online-only service worker
+              return navigator.serviceWorker.register('/sw.js');
+            })
             .then((registration) => {
               console.log('Online-only SW registered: ', registration);
               
               // Request notification permission
               if ('Notification' in window && navigator.serviceWorker) {
                 if (Notification.permission === 'default') {
-                  Notification.requestPermission();
+                  // Delay permission request to avoid blocking initial load
+                  setTimeout(() => {
+                    Notification.requestPermission();
+                  }, 3000);
                 }
               }
             })
             .catch((registrationError) => {
               console.log('Online-only SW registration failed: ', registrationError);
             });
+          });
         });
       }
     </script>
@@ -61,21 +74,39 @@
     <!-- OneSignal Initialization -->
     <script>
       window.OneSignalDeferred = window.OneSignalDeferred || [];
-      OneSignalDeferred.push(async function(OneSignal) {
-        await OneSignal.init({
-          appId: '2c99c3ab-54b1-4edb-b687-a436250ca0c4',
-          safari_web_id: 'web.onesignal.auto.5f80e2fb-b063-4ecb-90f7-0c7e45de9678',
-          notifyButton: { enable: true },
-          allowLocalhostAsSecureOrigin: true
-        });
+      
+      // Optimize OneSignal initialization
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => {
+          OneSignalDeferred.push(async function(OneSignal) {
+            await OneSignal.init({
+              appId: '2c99c3ab-54b1-4edb-b687-a436250ca0c4',
+              safari_web_id: 'web.onesignal.auto.5f80e2fb-b063-4ecb-90f7-0c7e45de9678',
+              notifyButton: { enable: true },
+              allowLocalhostAsSecureOrigin: true
+            });
 
-        // Check if push notifications are enabled
-        if (!OneSignal.User.PushSubscription.optedIn) {
-          console.log('OneSignal: Push notifications not enabled, will prompt when needed');
-        } else {
-          console.log('OneSignal: Push notifications already enabled');
-        }
-      });
+            // Check if push notifications are enabled
+            if (!OneSignal.User.PushSubscription.optedIn) {
+              console.log('OneSignal: Push notifications not enabled, will prompt when needed');
+            } else {
+              console.log('OneSignal: Push notifications already enabled');
+            }
+          });
+        });
+      } else {
+        // Fallback for browsers without requestIdleCallback
+        setTimeout(() => {
+          OneSignalDeferred.push(async function(OneSignal) {
+            await OneSignal.init({
+              appId: '2c99c3ab-54b1-4edb-b687-a436250ca0c4',
+              safari_web_id: 'web.onesignal.auto.5f80e2fb-b063-4ecb-90f7-0c7e45de9678',
+              notifyButton: { enable: true },
+              allowLocalhostAsSecureOrigin: true
+            });
+          });
+        }, 1000);
+      }
     </script>
   </body>
 </html>

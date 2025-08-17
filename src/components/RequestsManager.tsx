@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, Request, Group, Response } from '../lib/supabase';
-import { useRealtimeData } from '../hooks/useRealtimeData';
+import { useOptimizedQuery } from '../hooks/useOptimizedQuery';
+import { useOptimisticMutation } from '../hooks/useOptimisticMutation';
 import RefreshButton from './RefreshButton';
 import LoadingSpinner from './LoadingSpinner';
+import OptimizedImage from './OptimizedImage';
 import { Plus, Send, Upload, Eye, Trash2, Edit } from 'lucide-react';
 
 interface RequestsManagerProps {
@@ -32,45 +34,43 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
     data: requests,
     isLoading: requestsLoading,
     isRefreshing: requestsRefreshing,
-    refresh: refreshRequests
-  } = useRealtimeData({
+    refresh: refreshRequests,
+    mutate: updateRequests
+  } = useOptimizedQuery({
     table: 'requests',
     select: `
       *,
       creator:users(full_name),
       request_groups(group_id, groups(name))
     `,
-    orderBy: { column: 'created_at', ascending: false },
     cacheKey: 'admin-requests',
-    cacheDuration: 300000, // 5 minutes cache
-    enableRealtime: false // Manual refresh only
+    cacheDuration: 180000, // 3 minutes cache
+    orderBy: { column: 'created_at', ascending: false }
   });
 
   const {
     data: groups,
     refresh: refreshGroups
-  } = useRealtimeData({
+  } = useOptimizedQuery({
     table: 'groups',
-    orderBy: { column: 'name', ascending: true },
     cacheKey: 'admin-groups',
     cacheDuration: 600000, // 10 minutes cache for groups
-    enableRealtime: false // Manual refresh only
+    orderBy: { column: 'name', ascending: true }
   });
 
   const {
     data: responses,
     isRefreshing: responsesRefreshing,
     refresh: refreshResponses
-  } = useRealtimeData({
+  } = useOptimizedQuery({
     table: 'responses',
     select: `
       *,
       user:users(full_name, phone_number)
     `,
-    orderBy: { column: 'created_at', ascending: false },
     cacheKey: 'admin-responses',
-    cacheDuration: 300000, // 5 minutes cache
-    enableRealtime: false // Manual refresh only
+    cacheDuration: 180000, // 3 minutes cache
+    orderBy: { column: 'created_at', ascending: false }
   });
 
   const refreshAllData = () => {
@@ -80,85 +80,86 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
     onStatsUpdate();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  // Optimistic mutation for creating requests
+  const { mutate: createRequest, isLoading: isCreating } = useOptimisticMutation(
+    async (requestData: typeof formData) => {
+      if (!user) throw new Error('User not authenticated');
+      if (!requestData.image) throw new Error('At least one image is required');
 
-    try {
-      // Validate that at least one image is provided
-      if (!formData.image) {
-        alert('At least one image is required');
-        return;
-      }
+      // Upload image
+      const fileExt = requestData.image.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('request-images')
+        .upload(fileName, requestData.image);
 
-      let imageUrl = '';
+      if (uploadError) throw uploadError;
 
-      // Upload image if provided
-      if (formData.image) {
-        const fileExt = formData.image.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('request-images')
-          .upload(fileName, formData.image);
-
-        if (uploadError) throw uploadError;
-
-        const { data: urlData } = supabase.storage
-          .from('request-images')
-          .getPublicUrl(fileName);
-
-        imageUrl = urlData.publicUrl;
-      }
+      const { data: urlData } = supabase.storage
+        .from('request-images')
+        .getPublicUrl(fileName);
 
       // Create request
-      const { data: requestData, error: requestError } = await supabase
+      const { data: newRequest, error: requestError } = await supabase
         .from('requests')
         .insert({
-          title: formData.title || null,
-          description: formData.description || null,
-          image_url: imageUrl || null,
-          created_by: user?.id
+          title: requestData.title || null,
+          description: requestData.description || null,
+          image_url: urlData.publicUrl,
+          created_by: user.id
         })
-        .select()
+        .select(`
+          *,
+          creator:users(full_name),
+          request_groups(group_id, groups(name))
+        `)
         .single();
 
       if (requestError) throw requestError;
 
       // Link request to groups
-      if (formData.selectedGroups.length > 0) {
-        const requestGroups = formData.selectedGroups.map(groupId => ({
-          request_id: requestData.id,
+      if (requestData.selectedGroups.length > 0) {
+        const requestGroups = requestData.selectedGroups.map(groupId => ({
+          request_id: newRequest.id,
           group_id: groupId
         }));
 
-        await supabase
-          .from('request_groups')
-          .insert(requestGroups);
+        await supabase.from('request_groups').insert(requestGroups);
 
-        // Send notifications to group members
-        await sendNotificationsToGroups(requestData, formData.selectedGroups);
-        
-        // Send push notifications
-        await sendPushNotificationsToGroups(requestData, formData.selectedGroups);
+        // Send notifications and push notifications in parallel
+        await Promise.all([
+          sendNotificationsToGroups(newRequest, requestData.selectedGroups),
+          sendPushNotificationsToGroups(newRequest, requestData.selectedGroups)
+        ]);
       }
 
-      // Reset form and reload data
-      setFormData({
-        title: '',
-        description: '',
-        selectedGroups: [],
-        image: null
-      });
-      setIsModalOpen(false);
-      refreshRequests();
-      onStatsUpdate();
-
-    } catch (error) {
-      console.error('Error creating request:', error);
-    } finally {
-      setIsLoading(false);
+      return newRequest;
+    },
+    {
+      onSuccess: (newRequest) => {
+        // Optimistically update requests list
+        updateRequests([newRequest, ...(requests || [])]);
+        
+        // Reset form and close modal
+        setFormData({
+          title: '',
+          description: '',
+          selectedGroups: [],
+          image: null
+        });
+        setIsModalOpen(false);
+        onStatsUpdate();
+      },
+      onError: (error) => {
+        alert(error.message);
+      }
     }
+  );
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await createRequest(formData);
   };
 
   const sendPushNotificationsToGroups = async (request: Request, groupIds: string[]) => {
@@ -323,7 +324,7 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
                       <img 
                         src={request.image_url} 
                         alt={request.title}
-                        className="w-24 h-24 object-cover rounded-lg mb-3"
+                        className="w-20 h-20 object-cover rounded-lg mb-3"
                       />
                     )}
                     <div className="flex items-center gap-4 text-sm text-gray-500">
@@ -433,10 +434,17 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
                 <div className="flex gap-3 pt-4">
                   <button
                     type="submit"
-                    disabled={isLoading}
-                    className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    disabled={isCreating}
+                    className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
                   >
-                    {isLoading ? t('loading') : t('sendRequest')}
+                    {isCreating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Creating...</span>
+                      </>
+                    ) : (
+                      t('sendRequest')
+                    )}
                   </button>
                   <button
                     type="button"

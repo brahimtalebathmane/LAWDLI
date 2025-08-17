@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { supabase, Request, Response } from '../lib/supabase';
-import { useRealtimeData } from '../hooks/useRealtimeData';
+import { useOptimizedQuery } from '../hooks/useOptimizedQuery';
+import { useOptimisticMutation } from '../hooks/useOptimisticMutation';
 import Layout from './Layout';
 import RefreshButton from './RefreshButton';
 import LoadingSpinner from './LoadingSpinner';
+import OptimizedImage from './OptimizedImage';
 import { MessageSquare, Clock, CheckCircle, LogOut } from 'lucide-react';
 
 const UserDashboard: React.FC = () => {
@@ -45,9 +47,9 @@ const UserDashboard: React.FC = () => {
     isLoading: requestsLoading,
     isRefreshing: requestsRefreshing,
     refresh: refreshRequests,
-    lastUpdated: requestsLastUpdated
-  } = useRealtimeData({
-    table: 'request_groups',
+    mutate: updateRequestGroups
+  } = useOptimizedQuery({
+    table: 'request_groups', 
     select: `
       request_id,
       requests(
@@ -57,11 +59,10 @@ const UserDashboard: React.FC = () => {
     `,
     filter: userGroupIds.length > 0 ? { group_id: userGroupIds } : {},
     cacheKey: `user-requests-${user?.id}`,
-    cacheDuration: 300000, // 5 minutes cache
-    enableRealtime: false // Manual refresh only
+    cacheDuration: 180000, // 3 minutes cache for faster updates
+    enabled: userGroupIds.length > 0
   });
 
-  // Process requests from request_groups data
   const requests = React.useMemo(() => {
     if (!requestGroups) return [];
     
@@ -81,13 +82,13 @@ const UserDashboard: React.FC = () => {
   const {
     data: responsesData,
     isRefreshing: responsesRefreshing,
-    refresh: refreshResponses
-  } = useRealtimeData({
+    refresh: refreshResponses,
+    mutate: updateResponses
+  } = useOptimizedQuery({
     table: 'responses',
     filter: { user_id: user?.id },
     cacheKey: `user-responses-${user?.id}`,
-    cacheDuration: 300000, // 5 minutes cache
-    enableRealtime: false // Manual refresh only
+    cacheDuration: 120000 // 2 minutes cache for responses
   });
 
   useEffect(() => {
@@ -101,55 +102,63 @@ const UserDashboard: React.FC = () => {
     loadUserGroups();
   };
 
-  const respondToRequest = async (requestId: string, response: string) => {
-    if (!user) return;
+  // Optimistic mutation for responses
+  const { mutate: submitResponse, isLoading: isSubmitting } = useOptimisticMutation(
+    async ({ requestId, response }: { requestId: string; response: string }) => {
+      if (!user) throw new Error('User not authenticated');
 
-    setIsLoading(true);
-    try {
       // Check if user already responded
       const existingResponse = responses.find(r => r.request_id === requestId);
       if (existingResponse) {
-        alert('You have already responded to this request');
-        return;
+        throw new Error('You have already responded to this request');
       }
 
       // Create response
-      const { error: responseError } = await supabase
+      const { data: responseData, error: responseError } = await supabase
         .from('responses')
         .insert({
           request_id: requestId,
           user_id: user.id,
           response: response
-        });
+        })
+        .select()
+        .single();
 
       if (responseError) throw responseError;
 
       // Send notification to admin
       const request = requests.find(r => r.id === requestId);
       if (request) {
-        await supabase
-          .from('notifications')
-          .insert({
+        await Promise.all([
+          supabase.from('notifications').insert({
             user_id: request.created_by,
             title: 'New Response',
             message: `${user.full_name} responded "${response}" to "${request.title}"`,
             link: `/admin/requests/${requestId}`
-          });
-        
-        // Send push notification to admin
-        await sendPushNotificationToAdmin(request, response);
+          }),
+          sendPushNotificationToAdmin(request, response)
+        ]);
       }
 
-      // Reload data
-      refreshResponses();
-      refreshRequests();
-
-    } catch (error) {
-      console.error('Error responding to request:', error);
-      alert('Error sending response');
-    } finally {
-      setIsLoading(false);
+      return responseData;
+    },
+    {
+      onSuccess: (newResponse) => {
+        // Optimistically update responses
+        updateResponses([...responses, newResponse]);
+        // Show success feedback
+        console.log('Response submitted successfully');
+      },
+      onError: (error) => {
+        alert(error.message);
+      }
     }
+  );
+
+  const respondToRequest = async (requestId: string, response: string) => {
+    if (!user) return;
+
+    await submitResponse({ requestId, response });
   };
 
   const sendPushNotificationToAdmin = async (request: Request, responseChoice: string) => {
@@ -236,10 +245,17 @@ const UserDashboard: React.FC = () => {
           <button
             key={option}
             onClick={() => respondToRequest(requestId, option)}
-            disabled={isLoading}
+            disabled={isSubmitting}
             className={`px-4 py-2 text-white rounded-lg font-medium text-sm transition-all duration-200 hover:opacity-90 disabled:opacity-50 transform hover:scale-105 ${responseColors[index]}`}
           >
-            {option}
+            {isSubmitting ? (
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                <span>Sending...</span>
+              </div>
+            ) : (
+              option
+            )}
           </button>
         ))}
       </div>
@@ -259,11 +275,6 @@ const UserDashboard: React.FC = () => {
               <p className="text-gray-600">
                 {requests.length} active requests available
               </p>
-              {requestsLastUpdated && (
-                <p className="text-xs text-gray-500 mt-1">
-                  {t('lastUpdated')}: {requestsLastUpdated.toLocaleTimeString()}
-                </p>
-              )}
             </div>
             <div className="flex items-center gap-2">
               <RefreshButton
@@ -323,10 +334,13 @@ const UserDashboard: React.FC = () => {
                     
                     {request.image_url && (
                       <div className="mb-4">
-                        <img 
+                        <OptimizedImage
                           src={request.image_url} 
                           alt={request.title}
-                          className="rounded-lg shadow-sm max-w-sm w-full h-auto object-cover"
+                          className="rounded-lg shadow-sm"
+                          width={320}
+                          height={240}
+                          loading="lazy"
                         />
                       </div>
                     )}
