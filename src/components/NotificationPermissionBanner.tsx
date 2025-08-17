@@ -84,33 +84,6 @@ const NotificationPermissionBanner: React.FC = () => {
       setIsLoading(false);
     }
   };
-        setShowBanner(false);
-        // Test notification to confirm it's working
-        if ('Notification' in window && Notification.permission === 'granted') {
-          const testNotification = new Notification('لودلي | LAWDLI', {
-            body: 'Notifications are now enabled!',
-            icon: 'https://i.postimg.cc/rygydTNp/9.png',
-            tag: 'test-notification',
-            requireInteraction: false,
-            vibrate: [200, 100, 200]
-          });
-          
-          setTimeout(() => {
-            testNotification.close();
-          }, 5000);
-        }
-      } else {
-        // Permission was denied, show different message
-        console.log('Notification permission denied or failed');
-        alert(t('notifications.permission_denied'));
-      }
-    } catch (error) {
-      console.error('Error enabling notifications:', error);
-      alert('Failed to enable notifications. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleDismiss = () => {
     setShowBanner(false);
