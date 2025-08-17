@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { supabase } from '../lib/supabase';
+import { useRealtimeData } from '../hooks/useRealtimeData';
 import Layout from './Layout';
 import AdminNavigation from './AdminNavigation';
 import RequestsManager from './RequestsManager';
 import GroupsManager from './GroupsManager';
 import UsersManager from './UsersManager';
 import NotificationsPanel from './NotificationsPanel';
+import RefreshButton from './RefreshButton';
+import LoadingSpinner from './LoadingSpinner';
 import { BarChart3, Users, MessageSquare, Bell } from 'lucide-react';
 
 type ActiveTab = 'dashboard' | 'requests' | 'groups' | 'users' | 'notifications';
@@ -20,12 +23,26 @@ const AdminDashboard: React.FC = () => {
     totalUsers: 0,
     unreadNotifications: 0
   });
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { user } = useAuth();
   const { t } = useLanguage();
 
   useEffect(() => {
     loadStats();
+    
+    // Set up real-time subscription for notifications
+    const notificationSubscription = supabase
+      .channel('admin-notifications')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user?.id}`
+      }, () => {
+        loadStats();
+      })
+      .subscribe();
     
     // Set up real-time subscription for admin stats updates
     const subscription = supabase
@@ -61,11 +78,14 @@ const AdminDashboard: React.FC = () => {
       .subscribe();
 
     return () => {
+      notificationSubscription.unsubscribe();
       subscription.unsubscribe();
     };
   }, []);
 
   const loadStats = async () => {
+    setIsRefreshing(true);
+    
     try {
       const [requestsRes, groupsRes, usersRes, notificationsRes] = await Promise.all([
         supabase.from('requests').select('id', { count: 'exact' }),
@@ -82,6 +102,8 @@ const AdminDashboard: React.FC = () => {
       });
     } catch (error) {
       console.error('Error loading stats:', error);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -99,9 +121,17 @@ const AdminDashboard: React.FC = () => {
         return (
           <div className="space-y-8">
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                {t('welcome')}, {user?.full_name}
-              </h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {t('welcome')}, {user?.full_name}
+                </h2>
+                <RefreshButton
+                  onRefresh={loadStats}
+                  isRefreshing={isRefreshing}
+                  size="md"
+                  variant="ghost"
+                />
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="bg-blue-50 rounded-lg p-6 border border-blue-100">
@@ -144,6 +174,12 @@ const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
+              
+              {isRefreshing && (
+                <div className="mt-4 flex justify-center">
+                  <LoadingSpinner size="sm" text={t('refreshing')} />
+                </div>
+              )}
             </div>
           </div>
         );

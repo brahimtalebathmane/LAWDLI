@@ -2,108 +2,103 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { supabase, Request, Response } from '../lib/supabase';
+import { useRealtimeData } from '../hooks/useRealtimeData';
 import Layout from './Layout';
-import { MessageSquare, Clock, CheckCircle, XCircle, AlertCircle, LogOut } from 'lucide-react';
+import RefreshButton from './RefreshButton';
+import LoadingSpinner from './LoadingSpinner';
+import { MessageSquare, Clock, CheckCircle, LogOut } from 'lucide-react';
 
 const UserDashboard: React.FC = () => {
-  const [requests, setRequests] = useState<Request[]>([]);
   const [responses, setResponses] = useState<Response[]>([]);
+  const [userGroupIds, setUserGroupIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const { user, logout } = useAuth();
   const { t, language } = useLanguage();
 
+  // Get user's group IDs for filtering requests
   useEffect(() => {
     if (user) {
-      loadUserRequests();
-      loadUserResponses();
-      
-      // Set up real-time subscriptions for requests and request_groups
-      const requestsSubscription = supabase
-        .channel('requests-realtime')
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'requests'
-        }, () => {
-          console.log('New request detected, reloading...');
-          loadUserRequests();
-        })
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'request_groups'
-        }, () => {
-          console.log('New request group assignment detected, reloading...');
-          loadUserRequests();
-        })
-        .subscribe();
+      loadUserGroups();
     }
   }, [user]);
 
-  const loadUserRequests = async () => {
+  const loadUserGroups = async () => {
     if (!user) return;
 
     try {
-      // Get user's groups first
-      const { data: groupMemberships, error: groupError } = await supabase
+      const { data: groupMemberships, error } = await supabase
         .from('group_members')
         .select('group_id')
         .eq('user_id', user.id);
 
-      if (groupError) throw groupError;
-
-      const groupIds = groupMemberships?.map(gm => gm.group_id) || [];
-
-      if (groupIds.length === 0) {
-        setRequests([]);
-        return;
-      }
-
-      // Get requests for user's groups
-      const { data: requestGroups, error: requestError } = await supabase
-        .from('request_groups')
-        .select(`
-          request_id,
-          requests(
-            *,
-            creator:users(full_name)
-          )
-        `)
-        .in('group_id', groupIds);
-
-      if (requestError) throw requestError;
-
-      const uniqueRequests = requestGroups?.reduce((acc: Request[], rg: any) => {
-        if (rg.requests && !acc.find(r => r.id === rg.requests.id)) {
-          acc.push(rg.requests);
-        }
-        return acc;
-      }, []) || [];
-
-      setRequests(uniqueRequests.sort((a, b) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      ));
-
+      if (error) throw error;
+      setUserGroupIds(groupMemberships?.map(gm => gm.group_id) || []);
     } catch (error) {
-      console.error('Error loading user requests:', error);
+      console.error('Error loading user groups:', error);
     }
   };
 
-  const loadUserResponses = async () => {
-    if (!user) return;
+  // Use real-time data hook for requests
+  const {
+    data: requestGroups,
+    isLoading: requestsLoading,
+    isRefreshing: requestsRefreshing,
+    refresh: refreshRequests,
+    lastUpdated: requestsLastUpdated
+  } = useRealtimeData({
+    table: 'request_groups',
+    select: `
+      request_id,
+      requests(
+        *,
+        creator:users(full_name)
+      )
+    `,
+    filter: userGroupIds.length > 0 ? { group_id: userGroupIds } : {},
+    cacheKey: `user-requests-${user?.id}`,
+    cacheDuration: 15000, // 15 seconds
+    enableRealtime: true
+  });
 
-    try {
-      const { data, error } = await supabase
-        .from('responses')
-        .select('*')
-        .eq('user_id', user.id);
+  // Process requests from request_groups data
+  const requests = React.useMemo(() => {
+    if (!requestGroups) return [];
+    
+    const uniqueRequests = requestGroups.reduce((acc: Request[], rg: any) => {
+      if (rg.requests && !acc.find(r => r.id === rg.requests.id)) {
+        acc.push(rg.requests);
+      }
+      return acc;
+    }, []);
 
-      if (error) throw error;
-      setResponses(data || []);
-    } catch (error) {
-      console.error('Error loading user responses:', error);
-    }
+    return uniqueRequests.sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [requestGroups]);
+
+  // Use real-time data hook for user responses
+  const {
+    data: responsesData,
+    isRefreshing: responsesRefreshing,
+    refresh: refreshResponses
+  } = useRealtimeData({
+    table: 'responses',
+    filter: { user_id: user?.id },
+    cacheKey: `user-responses-${user?.id}`,
+    cacheDuration: 10000, // 10 seconds
+    enableRealtime: true
+  });
+
+  useEffect(() => {
+    setResponses(responsesData || []);
+  }, [responsesData]);
+
+  // Manual refresh all data
+  const refreshAllData = () => {
+    refreshRequests();
+    refreshResponses();
+    loadUserGroups();
   };
 
   const respondToRequest = async (requestId: string, response: string) => {
@@ -146,7 +141,8 @@ const UserDashboard: React.FC = () => {
       }
 
       // Reload data
-      loadUserResponses();
+      refreshResponses();
+      refreshRequests();
 
     } catch (error) {
       console.error('Error responding to request:', error);
@@ -263,6 +259,19 @@ const UserDashboard: React.FC = () => {
               <p className="text-gray-600">
                 {requests.length} active requests available
               </p>
+              {requestsLastUpdated && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {t('lastUpdated')}: {requestsLastUpdated.toLocaleTimeString()}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <RefreshButton
+                onRefresh={refreshAllData}
+                isRefreshing={requestsRefreshing || responsesRefreshing}
+                size="md"
+                variant="ghost"
+              />
             </div>
             <button
               onClick={logout}
@@ -274,9 +283,17 @@ const UserDashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Loading State */}
+        {requestsLoading && (
+          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+            <LoadingSpinner size="lg" text={t('loading')} />
+          </div>
+        )}
+
         {/* Requests List */}
-        <div className="space-y-6">
-          {requests.length === 0 ? (
+        {!requestsLoading && (
+          <div className="space-y-6">
+            {requests.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm p-12 text-center">
               <MessageSquare className="h-16 w-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -286,7 +303,7 @@ const UserDashboard: React.FC = () => {
                 You will see new requests here when they are sent to your groups.
               </p>
             </div>
-          ) : (
+            ) : (
             requests.map((request) => (
               <div 
                 key={request.id} 
@@ -334,7 +351,8 @@ const UserDashboard: React.FC = () => {
               </div>
             ))
           )}
-        </div>
+          </div>
+        )}
       </div>
     </Layout>
   );

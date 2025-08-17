@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { supabase, Notification } from '../lib/supabase';
+import { useRealtimeData } from '../hooks/useRealtimeData';
+import RefreshButton from './RefreshButton';
+import LoadingSpinner from './LoadingSpinner';
 import { Bell, BellOff, Check, Trash2 } from 'lucide-react';
 
 interface NotificationsPanelProps {
@@ -9,51 +12,30 @@ interface NotificationsPanelProps {
 }
 
 const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onStatsUpdate }) => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const { user } = useAuth();
   const { t } = useLanguage();
 
+  // Use real-time data hook for notifications
+  const {
+    data: notifications,
+    isLoading: notificationsLoading,
+    isRefreshing: notificationsRefreshing,
+    refresh: refreshNotifications
+  } = useRealtimeData({
+    table: 'notifications',
+    filter: { user_id: user?.id },
+    orderBy: { column: 'created_at', ascending: false },
+    cacheKey: `notifications-${user?.id}`,
+    cacheDuration: 10000, // 10 seconds
+    enableRealtime: true
+  });
+
+  // Update stats when notifications change
   useEffect(() => {
-    if (user) {
-      loadNotifications();
-      // Set up real-time subscription
-      const subscription = supabase
-        .channel('notifications')
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`
-        }, () => {
-          loadNotifications();
-          onStatsUpdate();
-        })
-        .subscribe();
-
-      return () => {
-        subscription.unsubscribe();
-      };
-    }
-  }, [user]);
-
-  const loadNotifications = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setNotifications(data || []);
-    } catch (error) {
-      console.error('Error loading notifications:', error);
-    }
-  };
+    onStatsUpdate();
+  }, [notifications, onStatsUpdate]);
 
   const markAsRead = async (notificationId: string) => {
     try {
@@ -62,7 +44,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onStatsUpdate }
         .update({ read: true })
         .eq('id', notificationId);
 
-      loadNotifications();
+      refreshNotifications();
       onStatsUpdate();
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -80,7 +62,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onStatsUpdate }
         .eq('user_id', user.id)
         .eq('read', false);
 
-      loadNotifications();
+      refreshNotifications();
       onStatsUpdate();
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
@@ -96,14 +78,14 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onStatsUpdate }
         .delete()
         .eq('id', notificationId);
 
-      loadNotifications();
+      refreshNotifications();
       onStatsUpdate();
     } catch (error) {
       console.error('Error deleting notification:', error);
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = (notifications || []).filter(n => !n.read).length;
 
   return (
     <div className="space-y-6">
@@ -116,28 +98,44 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onStatsUpdate }
             </span>
           )}
         </div>
-        {unreadCount > 0 && (
-          <button
-            onClick={markAllAsRead}
-            disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            <Check className="h-4 w-4" />
-            Mark all as read
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <RefreshButton
+            onRefresh={refreshNotifications}
+            isRefreshing={notificationsRefreshing}
+            size="md"
+            variant="ghost"
+          />
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllAsRead}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              <Check className="h-4 w-4" />
+              Mark all as read
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* Loading State */}
+      {notificationsLoading && (
+        <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+          <LoadingSpinner size="lg" text={t('loading')} />
+        </div>
+      )}
+
       {/* Notifications List */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      {!notificationsLoading && (
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <div className="divide-y divide-gray-200">
-          {notifications.length === 0 ? (
+          {(notifications || []).length === 0 ? (
             <div className="p-8 text-center text-gray-500">
               <BellOff className="h-12 w-12 text-gray-300 mx-auto mb-4" />
               <p>No notifications</p>
             </div>
           ) : (
-            notifications.map((notification) => (
+            (notifications || []).map((notification) => (
               <div 
                 key={notification.id} 
                 className={`p-6 hover:bg-gray-50 transition-colors ${
@@ -191,6 +189,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onStatsUpdate }
           )}
         </div>
       </div>
+      )}
     </div>
   );
 };

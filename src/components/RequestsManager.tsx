@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, Request, Group, Response } from '../lib/supabase';
+import { useRealtimeData } from '../hooks/useRealtimeData';
+import RefreshButton from './RefreshButton';
+import LoadingSpinner from './LoadingSpinner';
 import { Plus, Send, Upload, Eye, Trash2, Edit } from 'lucide-react';
 
 interface RequestsManagerProps {
@@ -9,9 +12,6 @@ interface RequestsManagerProps {
 }
 
 const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
-  const [requests, setRequests] = useState<Request[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [responses, setResponses] = useState<Response[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
@@ -27,82 +27,57 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
   const { t } = useLanguage();
   const { user } = useAuth();
 
-  useEffect(() => {
-    loadRequests();
-    loadGroups();
-    loadResponses();
-    
-    // Set up real-time subscription for requests manager
-    const subscription = supabase
-      .channel('requests-manager-realtime')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'requests'
-      }, () => {
-        loadRequests();
-      })
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'responses'
-      }, () => {
-        loadResponses();
-      })
-      .subscribe();
+  // Use real-time data hooks
+  const {
+    data: requests,
+    isLoading: requestsLoading,
+    isRefreshing: requestsRefreshing,
+    refresh: refreshRequests
+  } = useRealtimeData({
+    table: 'requests',
+    select: `
+      *,
+      creator:users(full_name),
+      request_groups(group_id, groups(name))
+    `,
+    orderBy: { column: 'created_at', ascending: false },
+    cacheKey: 'admin-requests',
+    cacheDuration: 20000,
+    enableRealtime: true
+  });
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+  const {
+    data: groups,
+    refresh: refreshGroups
+  } = useRealtimeData({
+    table: 'groups',
+    orderBy: { column: 'name', ascending: true },
+    cacheKey: 'admin-groups',
+    cacheDuration: 60000,
+    enableRealtime: true
+  });
 
-  const loadRequests = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('requests')
-        .select(`
-          *,
-          creator:users(full_name),
-          request_groups(group_id, groups(name))
-        `)
-        .order('created_at', { ascending: false });
+  const {
+    data: responses,
+    isRefreshing: responsesRefreshing,
+    refresh: refreshResponses
+  } = useRealtimeData({
+    table: 'responses',
+    select: `
+      *,
+      user:users(full_name, phone_number)
+    `,
+    orderBy: { column: 'created_at', ascending: false },
+    cacheKey: 'admin-responses',
+    cacheDuration: 15000,
+    enableRealtime: true
+  });
 
-      if (error) throw error;
-      setRequests(data || []);
-    } catch (error) {
-      console.error('Error loading requests:', error);
-    }
-  };
-
-  const loadGroups = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('groups')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-      setGroups(data || []);
-    } catch (error) {
-      console.error('Error loading groups:', error);
-    }
-  };
-
-  const loadResponses = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('responses')
-        .select(`
-          *,
-          user:users(full_name, phone_number)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setResponses(data || []);
-    } catch (error) {
-      console.error('Error loading responses:', error);
-    }
+  const refreshAllData = () => {
+    refreshRequests();
+    refreshGroups();
+    refreshResponses();
+    onStatsUpdate();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -176,7 +151,7 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
         image: null
       });
       setIsModalOpen(false);
-      loadRequests();
+      refreshRequests();
       onStatsUpdate();
 
     } catch (error) {
@@ -288,7 +263,7 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
         .delete()
         .eq('id', requestId);
 
-      loadRequests();
+      refreshRequests();
       onStatsUpdate();
     } catch (error) {
       console.error('Error deleting request:', error);
@@ -303,24 +278,40 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900">{t('requests')}</h2>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          {t('createRequest')}
-        </button>
+        <div className="flex items-center gap-2">
+          <RefreshButton
+            onRefresh={refreshAllData}
+            isRefreshing={requestsRefreshing || responsesRefreshing}
+            size="md"
+            variant="ghost"
+          />
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            {t('createRequest')}
+          </button>
+        </div>
       </div>
 
+      {/* Loading State */}
+      {requestsLoading && (
+        <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+          <LoadingSpinner size="lg" text={t('loading')} />
+        </div>
+      )}
+
       {/* Requests List */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      {!requestsLoading && (
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <div className="divide-y divide-gray-200">
-          {requests.length === 0 ? (
+          {(requests || []).length === 0 ? (
             <div className="p-8 text-center text-gray-500">
               {t('noData')}
             </div>
           ) : (
-            requests.map((request) => (
+            (requests || []).map((request) => (
               <div key={request.id} className="p-6 hover:bg-gray-50 transition-colors">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -360,6 +351,7 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
           )}
         </div>
       </div>
+      )}
 
       {/* Create Request Modal */}
       {isModalOpen && (
@@ -416,7 +408,7 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
                     {t('selectGroups')}
                   </label>
                   <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {groups.map((group) => (
+                    {(groups || []).map((group) => (
                       <label key={group.id} className="flex items-center">
                         <input
                           type="checkbox"

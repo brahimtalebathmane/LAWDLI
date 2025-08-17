@@ -80,6 +80,13 @@ const translations = {
     'notifications.enable': 'تفعيل الإشعارات',
     'notifications.permission_denied': 'تم رفض إذن الإشعارات. يرجى تفعيلها من إعدادات المتصفح.',
     
+    // Refresh and loading
+    'refresh': 'تحديث',
+    'refreshing': 'جارِ التحديث...',
+    'lastUpdated': 'آخر تحديث',
+    'refreshData': 'تحديث البيانات',
+    'autoRefresh': 'تحديث تلقائي',
+    
     // Form labels
     'optional': 'اختياري',
     'imageRequired': 'مطلوب صورة واحدة على الأقل',
@@ -153,6 +160,13 @@ const translations = {
     'push.new_response.body': '{{full_name}} a répondu "{{choice}}"',
     'notifications.enable': 'Activer les notifications',
     'notifications.permission_denied': 'Permission de notification refusée. Veuillez l\'activer dans les paramètres du navigateur.',
+    
+    // Refresh and loading
+    'refresh': 'Actualiser',
+    'refreshing': 'Actualisation...',
+    'lastUpdated': 'Dernière mise à jour',
+    'refreshData': 'Actualiser les données',
+    'autoRefresh': 'Actualisation automatique',
     
     // Form labels
     'optional': 'Optionnel',
