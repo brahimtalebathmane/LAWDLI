@@ -171,7 +171,12 @@ export function useOptimizedQuery<T = any>({
       
       return result;
     } catch (err: any) {
-      if (err.name !== 'AbortError' && mountedRef.current) {
+      if (err.name === 'AbortError') {
+        // AbortError is expected when requests are cancelled, don't log as error
+        return cached?.data || [];
+      }
+      
+      if (mountedRef.current) {
         setError(err.message || 'An error occurred');
       }
       return cached?.data || [];
