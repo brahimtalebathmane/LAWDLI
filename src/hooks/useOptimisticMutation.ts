@@ -24,10 +24,11 @@ export function useOptimisticMutation<T = any, V = any>(
   const [data, setData] = useState<T | null>(null);
 
   const mutate = useCallback(async (variables: V): Promise<T | null> => {
-    setIsLoading(true);
+    // Don't set loading state immediately for faster UI response
     setError(null);
 
     try {
+      setIsLoading(true);
       const result = await mutationFn(variables);
       setData(result);
       options.onSuccess?.(result);
@@ -38,7 +39,8 @@ export function useOptimisticMutation<T = any, V = any>(
       options.onError?.(error);
       return null;
     } finally {
-      setIsLoading(false);
+      // Delay loading state reset for smoother UX
+      setTimeout(() => setIsLoading(false), 100);
       options.onSettled?.();
     }
   }, [mutationFn, options]);

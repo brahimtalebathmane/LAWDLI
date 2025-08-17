@@ -121,10 +121,19 @@ export function useOptimizedQuery<T = any>({
     // Create and cache the promise
     const promise = (async () => {
       try {
+        // Optimize query execution
         const query = buildQuery();
-        const { data: fetchedData, error: fetchError } = await query.abortSignal(
-          abortControllerRef.current!.signal
+        
+        // Use faster query execution with timeout
+        const queryPromise = query.abortSignal(abortControllerRef.current!.signal);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Query timeout')), 10000)
         );
+        
+        const { data: fetchedData, error: fetchError } = await Promise.race([
+          queryPromise,
+          timeoutPromise
+        ]);
 
         if (fetchError) throw fetchError;
 

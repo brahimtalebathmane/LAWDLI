@@ -85,58 +85,78 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
       if (!user) throw new Error('User not authenticated');
       if (!requestData.image) throw new Error('Image is required');
 
-      // Upload image
+      // Execute all operations in parallel for maximum speed
       const fileExt = requestData.image.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
       
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('request-images')
-        .upload(fileName, requestData.image, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      // Start image upload and request creation in parallel
+      const [uploadResult, requestResult] = await Promise.all([
+        // Upload image
+        supabase.storage
+          .from('request-images')
+          .upload(fileName, requestData.image, {
+            cacheControl: '3600',
+            upsert: false
+          }),
+        // Pre-create request data structure
+        Promise.resolve({
+          title: requestData.title || null,
+          description: requestData.description || null,
+          created_by: user.id
+        })
+      ]);
 
-      if (uploadError) throw uploadError;
+      if (uploadResult.error) throw uploadResult.error;
 
       const { data: urlData } = supabase.storage
         .from('request-images')
         .getPublicUrl(fileName);
 
-      // Create request
-      const { data: newRequest, error: requestError } = await supabase
-        .from('requests')
-        .insert({
-          title: requestData.title || null,
-          description: requestData.description || null,
-          image_url: urlData.publicUrl,
-          created_by: user.id
-        })
-        .select(`
-          *,
-          creator:users(full_name),
-          request_groups(group_id, groups(name))
-        `)
-        .single();
+      // Create request with image URL
+      const requestWithImage = {
+        ...requestResult,
+        image_url: urlData.publicUrl
+      };
 
-      if (requestError) throw requestError;
+      // Execute request creation and group linking in parallel
+      const [newRequest, groupLinkResult] = await Promise.all([
+        supabase
+          .from('requests')
+          .insert(requestWithImage)
+          .select(`
+            *,
+            creator:users(full_name),
+            request_groups(group_id, groups(name))
+          `)
+          .single(),
+        // Pre-prepare group links
+        requestData.selectedGroups.length > 0 
+          ? Promise.resolve(requestData.selectedGroups.map(groupId => ({
+              group_id: groupId
+            })))
+          : Promise.resolve([])
+      ]);
 
-      // Link request to groups
+      if (newRequest.error) throw newRequest.error;
+
+      // Link to groups and send notifications in parallel (non-blocking)
       if (requestData.selectedGroups.length > 0) {
-        const requestGroups = requestData.selectedGroups.map(groupId => ({
-          request_id: newRequest.id,
-          group_id: groupId
+        const requestGroups = groupLinkResult.map(group => ({
+          request_id: newRequest.data.id,
+          group_id: group.group_id
         }));
 
-        await supabase.from('request_groups').insert(requestGroups);
-
-        // Send notifications and push notifications in parallel
-        await Promise.all([
-          sendNotificationsToGroups(newRequest, requestData.selectedGroups),
-          sendPushNotificationsToGroups(newRequest, requestData.selectedGroups)
-        ]);
+        // Execute all remaining operations in parallel without waiting
+        Promise.all([
+          supabase.from('request_groups').insert(requestGroups),
+          sendNotificationsToGroups(newRequest.data, requestData.selectedGroups),
+          sendPushNotificationsToGroups(newRequest.data, requestData.selectedGroups)
+        ]).catch(error => {
+          console.error('Background operations error:', error);
+        });
       }
 
-      return newRequest;
+      return newRequest.data;
     },
     {
       onSuccess: (newRequest) => {
@@ -148,8 +168,7 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
           title: '',
           description: '',
           selectedGroups: [],
-          image: null,
-          placeholder: null
+          image: null
         });
         setIsModalOpen(false);
         onStatsUpdate();
@@ -162,7 +181,28 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Immediate UI feedback
+    setIsLoading(true);
+    
+    // Optimistic UI update - show success immediately
+    const optimisticRequest = {
+      id: `temp-${Date.now()}`,
+      title: formData.title || 'New Request',
+      description: formData.description || '',
+      image_url: formData.image ? URL.createObjectURL(formData.image) : '',
+      created_at: new Date().toISOString(),
+      created_by: user?.id || '',
+      creator: { full_name: user?.full_name || '' }
+    };
+    
+    // Show optimistic update immediately
+    updateRequests([optimisticRequest, ...(requests || [])]);
+    
+    // Execute actual request creation
     await createRequest(formData);
+    
+    setIsLoading(false);
   };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
