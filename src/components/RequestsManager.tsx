@@ -181,7 +181,7 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
     if (!file) return;
 
     if (!validateImageFile(file)) {
-      alert('Please select a valid image file (JPEG, PNG, WebP) under 10MB');
+      alert('Please select a valid image file (JPEG or PNG) under 10MB');
       return;
     }
 
@@ -446,17 +446,16 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
                     required
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    {t('imageRequired')} (JPEG, PNG only)
+                    JPEG or PNG format only, max 10MB
                   </p>
                   {formData.placeholder && (
                     <div className="mt-2">
                       <img
                         src={formData.placeholder}
                         alt="Preview"
-                        className="w-20 h-20 object-cover rounded border filter blur-sm"
-                        style={{ imageRendering: 'auto' }}
+                        className="w-20 h-20 object-cover rounded border"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Preview (will be optimized on upload)</p>
+                      <p className="text-xs text-gray-500 mt-1">Preview - will be compressed on upload</p>
                     </div>
                   )}
                 </div>

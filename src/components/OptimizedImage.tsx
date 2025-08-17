@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { getOptimizedImageUrl } from '../lib/imageOptimization';
+import { getOptimizedImageUrl, createFallbackPlaceholder } from '../lib/imageOptimization';
 
 interface OptimizedImageProps {
   src: string;
@@ -68,32 +68,27 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   };
 
   const handleError = () => {
+    console.warn('Image failed to load:', src);
     setHasError(true);
+    setShowLowRes(false);
     onError?.();
   };
 
-  // Optimize image URL for better performance
+  // Get optimized image URL - JPEG/PNG only
   const optimizedSrc = React.useMemo(() => {
     if (!src || hasError) {
-      return placeholder || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlDQTNBRiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkxvYWRpbmcuLi48L3RleHQ+PC9zdmc+';
+      return placeholder || createFallbackPlaceholder(width, height);
     }
     
     return getOptimizedImageUrl(src, width, height);
-  }, [src, hasError, width, height]);
-
-  // Enhanced error handling with retry logic
-  const handleErrorEnhanced = () => {
-    console.warn('Image failed to load:', src);
-    setHasError(true);
-    onError?.();
-  };
+  }, [src, hasError, width, height, placeholder]);
 
   // Preload critical images
   useEffect(() => {
-    if (loading === 'eager' && optimizedSrc && optimizedSrc !== placeholder) {
+    if (loading === 'eager' && optimizedSrc && optimizedSrc !== placeholder && !optimizedSrc.startsWith('data:')) {
       const img = new Image();
       img.onload = () => setIsLoaded(true);
-      img.onerror = handleErrorEnhanced;
+      img.onerror = handleError;
       img.src = optimizedSrc;
     }
   }, [optimizedSrc, loading, placeholder]);
@@ -120,7 +115,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
         </div>
       )}
       
-      {/* Main image with enhanced error handling */}
+      {/* Main image */}
       {(isInView || loading === 'eager') && !hasError && (
         <img
           ref={imgRef}
@@ -130,23 +125,20 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
           height={height}
           loading={loading}
           onLoad={handleLoad}
-          onError={handleErrorEnhanced}
+          onError={handleError}
           className={`w-full h-full object-cover transition-opacity duration-300 ${
             isLoaded ? 'opacity-100 z-10' : 'opacity-0'
           }`}
           style={{
-            aspectRatio: width && height ? `${width}/${height}` : undefined
-          }}
-          crossOrigin="anonymous"
-          decoding="async"
-          style={{
             aspectRatio: width && height ? `${width}/${height}` : undefined,
             imageRendering: 'auto'
           }}
+          crossOrigin="anonymous"
+          decoding="async"
         />
       )}
       
-      {/* Enhanced error state with retry option */}
+      {/* Error state with retry option */}
       {hasError && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 text-gray-400 text-sm border-2 border-dashed border-gray-200">
           <div className="text-center p-4">

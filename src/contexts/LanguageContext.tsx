@@ -89,7 +89,7 @@ const translations = {
     
     // Form labels
     'optional': 'اختياري',
-    'imageRequired': 'مطلوب صورة واحدة على الأقل (JPEG أو PNG)',
+    'imageRequired': 'صورة مطلوبة (JPEG أو PNG فقط)',
   },
   fr: {
     // Auth
@@ -170,7 +170,7 @@ const translations = {
     
     // Form labels
     'optional': 'Optionnel',
-    'imageRequired': 'Au moins une image est requise (JPEG ou PNG)',
+    'imageRequired': 'Image requise (JPEG ou PNG seulement)',
   }
 };
 

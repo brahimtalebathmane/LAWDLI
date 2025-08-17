@@ -337,10 +337,11 @@ const UserDashboard: React.FC = () => {
                         <OptimizedImage
                           src={request.image_url} 
                           alt={request.title}
-                          className="rounded-lg shadow-sm bg-gray-100"
+                          className="rounded-lg shadow-sm"
                           width={400}
                           height={300}
                           loading="lazy"
+                          placeholder={createFallbackPlaceholder(400, 300)}
                         />
                       </div>
                     )}

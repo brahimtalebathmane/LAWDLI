@@ -5,10 +5,9 @@ interface CompressionOptions {
   quality?: number;
   maxWidth?: number;
   maxHeight?: number;
-  format?: 'webp' | 'jpeg' | 'png';
+  format?: 'jpeg' | 'png';
 }
 
-// Check browser support for modern formats
 // Get optimal format - use JPEG for maximum compatibility
 export const getOptimalFormat = (): 'jpeg' | 'png' => {
   return 'jpeg'; // Default to JPEG for best compatibility
@@ -150,4 +149,16 @@ export const getOptimizedImageUrl = (url: string, width?: number, height?: numbe
     console.warn('Error optimizing image URL:', error);
     return url;
   }
+};
+
+// Create fallback placeholder SVG
+export const createFallbackPlaceholder = (width: number = 400, height: number = 300): string => {
+  return `data:image/svg+xml;base64,${btoa(`
+    <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100%" height="100%" fill="#f3f4f6"/>
+      <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="14" fill="#9CA3AF" text-anchor="middle" dy=".3em">
+        Image not available
+      </text>
+    </svg>
+  `)}`;
 };
