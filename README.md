@@ -59,20 +59,25 @@ FCM_SERVER_KEY=your_fcm_server_key_here
 
 **CRITICAL: FCM Server Key Setup**
 
-1. **Get FCM Server Key:**
+1. **Get Firebase Service Account (Recommended):**
    - Go to [Firebase Console](https://console.firebase.google.com/)
    - Select your project: `lawdli`
-   - Go to Project Settings → Cloud Messaging
-   - Copy the "Server key" (legacy) value
+   - Go to Project Settings → Service Accounts
+   - Click "Generate new private key"
+   - Download the JSON file
 
 2. **Set in Supabase:**
    - Go to your Supabase project dashboard
    - Navigate to Edge Functions → Environment Variables
-   - Add: `FCM_SERVER_KEY` = `your_server_key_here`
+   - Add the following variables:
+     - `FIREBASE_PROJECT_ID` = `your_project_id`
+     - `FIREBASE_CLIENT_EMAIL` = `firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com`
+     - `FIREBASE_PRIVATE_KEY` = `"-----BEGIN PRIVATE KEY-----\nYOUR_KEY\n-----END PRIVATE KEY-----\n"`
+     - `FIREBASE_TOKEN_URI` = `https://oauth2.googleapis.com/token`
    - Deploy the edge function: `supabase functions deploy send-push-notifications`
 
 3. **Verify Setup:**
-   - Check browser console for "FCM Server Key status: Present"
+   - Check browser console for "Firebase Service Account status: Present"
    - Test notifications by responding to requests
    - Check Edge Function logs in Supabase dashboard
 

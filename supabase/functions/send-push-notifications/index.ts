@@ -13,6 +13,91 @@ interface PushPayload {
   data?: Record<string, any>;
 }
 
+// Function to create JWT for Firebase Admin SDK
+async function createFirebaseJWT(): Promise<string> {
+  const projectId = Deno.env.get('FIREBASE_PROJECT_ID');
+  const clientEmail = Deno.env.get('FIREBASE_CLIENT_EMAIL');
+  const privateKey = Deno.env.get('FIREBASE_PRIVATE_KEY');
+  const tokenUri = Deno.env.get('FIREBASE_TOKEN_URI');
+
+  if (!projectId || !clientEmail || !privateKey || !tokenUri) {
+    throw new Error('Missing Firebase Service Account credentials');
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const exp = now + 3600; // 1 hour expiration
+
+  const header = {
+    alg: 'RS256',
+    typ: 'JWT'
+  };
+
+  const payload = {
+    iss: clientEmail,
+    scope: 'https://www.googleapis.com/auth/firebase.messaging',
+    aud: tokenUri,
+    iat: now,
+    exp: exp
+  };
+
+  // Create JWT manually using Web Crypto API
+  const encoder = new TextEncoder();
+  const headerB64 = btoa(JSON.stringify(header)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const payloadB64 = btoa(JSON.stringify(payload)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  
+  const data = encoder.encode(`${headerB64}.${payloadB64}`);
+  
+  // Import private key
+  const keyData = privateKey.replace(/\\n/g, '\n');
+  const pemHeader = '-----BEGIN PRIVATE KEY-----';
+  const pemFooter = '-----END PRIVATE KEY-----';
+  const pemContents = keyData.substring(pemHeader.length, keyData.length - pemFooter.length);
+  const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+  
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8',
+    binaryDer,
+    {
+      name: 'RSASSA-PKCS1-v1_5',
+      hash: 'SHA-256'
+    },
+    false,
+    ['sign']
+  );
+
+  // Sign the JWT
+  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, data);
+  const signatureB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+
+  return `${headerB64}.${payloadB64}.${signatureB64}`;
+}
+
+// Function to get Firebase access token
+async function getFirebaseAccessToken(): Promise<string> {
+  const jwt = await createFirebaseJWT();
+  const tokenUri = Deno.env.get('FIREBASE_TOKEN_URI');
+
+  const response = await fetch(tokenUri!, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to get access token: ${error}`);
+  }
+
+  const tokenData = await response.json();
+  return tokenData.access_token;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -55,16 +140,23 @@ serve(async (req) => {
       );
     }
 
-    // Get FCM server key from environment
-    const fcmServerKey = Deno.env.get('FCM_SERVER_KEY');
-    console.log('FCM Server Key status:', fcmServerKey ? 'Present' : 'Missing');
+    // Check Firebase Service Account credentials
+    const projectId = Deno.env.get('FIREBASE_PROJECT_ID');
+    const clientEmail = Deno.env.get('FIREBASE_CLIENT_EMAIL');
+    const privateKey = Deno.env.get('FIREBASE_PRIVATE_KEY');
     
-    if (!fcmServerKey) {
-      console.error('FCM_SERVER_KEY environment variable not set');
+    console.log('Firebase Service Account status:', {
+      projectId: projectId ? 'Present' : 'Missing',
+      clientEmail: clientEmail ? 'Present' : 'Missing',
+      privateKey: privateKey ? 'Present' : 'Missing'
+    });
+    
+    if (!projectId || !clientEmail || !privateKey) {
+      console.error('Firebase Service Account credentials not configured');
       return new Response(
         JSON.stringify({ 
-          error: 'FCM Server Key not configured in Supabase environment variables',
-          details: 'Please set FCM_SERVER_KEY in your Supabase project settings > Edge Functions > Environment Variables'
+          error: 'Firebase Service Account not configured',
+          details: 'Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY in Supabase environment variables'
         }),
         { 
           status: 500, 
@@ -130,7 +222,12 @@ serve(async (req) => {
       );
     }
 
-    // Send FCM messages
+    // Get Firebase access token
+    console.log('Getting Firebase access token...');
+    const accessToken = await getFirebaseAccessToken();
+    console.log('Firebase access token obtained successfully');
+
+    // Send FCM messages using Firebase Admin SDK v1 API
     let sentCount = 0;
     let failedCount = 0;
     const invalidTokens: string[] = [];
@@ -141,82 +238,81 @@ serve(async (req) => {
         console.log(`Sending notification to token: ${tokenData.fcm_token.substring(0, 20)}...`);
         
         const fcmPayload = {
-          to: tokenData.fcm_token,
-          notification: {
-            title,
-            body,
-            icon: 'https://i.postimg.cc/rygydTNp/9.png',
-            badge: 'https://i.postimg.cc/rygydTNp/9.png',
-            click_action: data?.deepLink || '/',
-            tag: 'lawdli-notification'
-          },
-          data: {
-            ...data,
-            click_action: data?.deepLink || '/'
-          },
-          webpush: {
-            headers: {
-              'Urgency': 'high',
-              'TTL': '86400'
-            },
-            fcm_options: {
-              link: data?.deepLink || '/'
-            },
+          message: {
+            token: tokenData.fcm_token,
             notification: {
               title,
               body,
-              icon: 'https://i.postimg.cc/rygydTNp/9.png',
-              badge: 'https://i.postimg.cc/rygydTNp/9.png',
-              vibrate: [200, 100, 200, 100, 200],
-              requireInteraction: true,
-              silent: false,
-              tag: 'lawdli-notification',
-              renotify: true,
-              timestamp: Date.now(),
-              actions: [
-                {
-                  action: 'open',
-                  title: 'فتح',
-                  icon: 'https://i.postimg.cc/rygydTNp/9.png'
-                }
-              ]
-            }
-          },
-          android: {
-            priority: 'high',
-            notification: {
-              title,
-              body,
-              icon: 'https://i.postimg.cc/rygydTNp/9.png',
+              image: 'https://i.postimg.cc/rygydTNp/9.png'
+            },
+            data: {
+              ...data,
               click_action: data?.deepLink || '/',
-              tag: 'lawdli-notification',
-              channel_id: 'lawdli_notifications'
-            }
-          },
-          apns: {
-            headers: {
-              'apns-priority': '10'
+              deepLink: data?.deepLink || '/'
             },
-            payload: {
-              aps: {
-                alert: {
-                  title,
-                  body
-                },
-                badge: 1,
-                sound: 'default',
-                'content-available': 1
+            webpush: {
+              headers: {
+                'Urgency': 'high',
+                'TTL': '86400'
+              },
+              fcm_options: {
+                link: data?.deepLink || '/'
+              },
+              notification: {
+                title,
+                body,
+                icon: 'https://i.postimg.cc/rygydTNp/9.png',
+                badge: 'https://i.postimg.cc/rygydTNp/9.png',
+                vibrate: [200, 100, 200, 100, 200],
+                requireInteraction: true,
+                silent: false,
+                tag: 'lawdli-notification',
+                renotify: true,
+                timestamp: Date.now(),
+                actions: [
+                  {
+                    action: 'open',
+                    title: 'فتح',
+                    icon: 'https://i.postimg.cc/rygydTNp/9.png'
+                  }
+                ]
+              }
+            },
+            android: {
+              priority: 'high',
+              notification: {
+                title,
+                body,
+                icon: 'https://i.postimg.cc/rygydTNp/9.png',
+                click_action: data?.deepLink || '/',
+                tag: 'lawdli-notification',
+                channel_id: 'lawdli_notifications'
+              }
+            },
+            apns: {
+              headers: {
+                'apns-priority': '10'
+              },
+              payload: {
+                aps: {
+                  alert: {
+                    title,
+                    body
+                  },
+                  badge: 1,
+                  sound: 'default',
+                  'content-available': 1
+                }
               }
             }
           }
         };
 
-        const fcmResponse = await fetch('https://fcm.googleapis.com/fcm/send', {
+        const fcmResponse = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
           method: 'POST',
           headers: {
-            'Authorization': `key=${fcmServerKey}`,
-            'Content-Type': 'application/json',
-            'Priority': 'high'
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify(fcmPayload)
         });
@@ -226,20 +322,20 @@ serve(async (req) => {
         
         results.push({
           token: tokenData.fcm_token.substring(0, 20) + '...',
-          success: fcmResponse.ok && fcmResult.success === 1,
+          success: fcmResponse.ok,
           result: fcmResult
         });
 
-        if (fcmResponse.ok && fcmResult.success === 1) {
+        if (fcmResponse.ok && fcmResult.name) {
           sentCount++;
           console.log('✅ Notification sent successfully');
         } else {
           failedCount++;
           
           // Check for invalid token errors
-          if (fcmResult.results?.[0]?.error === 'NotRegistered' || 
-              fcmResult.results?.[0]?.error === 'InvalidRegistration' ||
-              fcmResult.results?.[0]?.error === 'MismatchSenderId') {
+          if (fcmResult.error?.details?.[0]?.errorCode === 'UNREGISTERED' || 
+              fcmResult.error?.details?.[0]?.errorCode === 'INVALID_ARGUMENT' ||
+              fcmResult.error?.code === 404) {
             invalidTokens.push(tokenData.fcm_token);
             console.log('❌ Invalid token detected, will be removed');
           }
