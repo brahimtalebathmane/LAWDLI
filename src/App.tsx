@@ -2,7 +2,6 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
-import { onForegroundMessage } from './lib/firebase';
 import Login from './components/Login';
 import AdminDashboard from './components/AdminDashboard';
 import UserDashboard from './components/UserDashboard';
@@ -30,15 +29,8 @@ const AppRouter: React.FC = () => {
         notification.onclick = () => {
           notification.close();
           const deepLink = payload.data?.deepLink;
-          if (deepLink && deepLink !== '/') window.location.href = deepLink;
-          window.focus();
-        };
-
-        setTimeout(() => notification.close(), 5000);
-      } else {
-        console.log('OneSignal handles notifications automatically');
-      }
-    });
+    // OneSignal handles foreground messages automatically through the SDK
+    console.log('OneSignal: Foreground message handling is managed by OneSignal SDK');
   }, []);
 
   if (isLoading) {

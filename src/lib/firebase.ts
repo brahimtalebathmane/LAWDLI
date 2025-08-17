@@ -1,5 +1,5 @@
 // OneSignal Web Push Integration
-// This file now handles OneSignal instead of Firebase Cloud Messaging
+// This file handles OneSignal push notifications
 
 export const requestNotificationPermission = async (userId: string): Promise<string | null> => {
   try {
@@ -10,31 +10,32 @@ export const requestNotificationPermission = async (userId: string): Promise<str
       return null;
     }
 
-
     // Wait for OneSignal to be ready and associate with user
     return new Promise((resolve) => {
       window.OneSignal = window.OneSignal || [];
-      window.OneSignal.push(async function(OneSignal) {
+      window.OneSignal.push(function(OneSignalSDK) {
         try {
           // Set external user ID
-          await OneSignal.setExternalUserId(userId);
-          console.log('OneSignal: External user ID set successfully:', userId);
-          
-          // Get subscription status
-          const isSubscribed = await OneSignal.isPushNotificationsEnabled();
-          console.log('OneSignal: Push notifications enabled:', isSubscribed);
-          
-          if (!isSubscribed) {
-            // Request permission
-            await OneSignal.showNativePrompt();
-            console.log('OneSignal: Native prompt shown');
-          }
-          
-          // Get player ID (subscription ID)
-          const playerId = await OneSignal.getPlayerId();
-          console.log('OneSignal: Player ID obtained:', playerId);
-          
-          resolve(playerId || 'onesignal-subscribed');
+          OneSignalSDK.setExternalUserId(userId).then(() => {
+            console.log('OneSignal: External user ID set successfully:', userId);
+            
+            // Get subscription status
+            OneSignalSDK.isPushNotificationsEnabled().then((isEnabled) => {
+              console.log('OneSignal: Push notifications enabled:', isEnabled);
+              
+              if (!isEnabled) {
+                // Request permission
+                OneSignalSDK.showNativePrompt();
+                console.log('OneSignal: Native prompt shown');
+              }
+              
+              // Get player ID (subscription ID)
+              OneSignalSDK.getPlayerId().then((playerId) => {
+                console.log('OneSignal: Player ID obtained:', playerId);
+                resolve(playerId || 'onesignal-subscribed');
+              });
+            });
+          });
         } catch (error) {
           console.error('OneSignal: Setup failed:', error);
           resolve(null);
@@ -57,10 +58,13 @@ export const deleteFCMToken = async (userId: string): Promise<void> => {
     console.log('OneSignal: Logging out user:', userId);
     
     window.OneSignal = window.OneSignal || [];
-    window.OneSignal.push(async function(OneSignal) {
+    window.OneSignal.push(function(OneSignalSDK) {
       try {
-        await OneSignal.removeExternalUserId();
-        console.log('OneSignal: External user ID removed successfully');
+        OneSignalSDK.removeExternalUserId().then(() => {
+          console.log('OneSignal: External user ID removed successfully');
+        }).catch((error) => {
+          console.error('OneSignal: Logout failed:', error);
+        });
       } catch (error) {
         console.error('OneSignal: Logout failed:', error);
       }
@@ -75,29 +79,27 @@ export const onForegroundMessage = (callback: (payload: any) => void) => {
   console.log('OneSignal: Setting up foreground message handler');
   
   window.OneSignal = window.OneSignal || [];
-  window.OneSignal.push(function() {
+  window.OneSignal.push(function(OneSignalSDK) {
     try {
-      this.ready(() => {
-        this.on('notificationDisplay', function(event) {
-          console.log('OneSignal: Notification displayed:', event);
-          callback({
-            notification: {
-              title: event.title,
-              body: event.body
-            },
-            data: event.data || {}
-          });
+      OneSignalSDK.on('notificationDisplay', function(event) {
+        console.log('OneSignal: Notification displayed:', event);
+        callback({
+          notification: {
+            title: event.notification?.title || event.title,
+            body: event.notification?.body || event.body
+          },
+          data: event.notification?.data || event.data || {}
         });
-        
-        this.on('notificationClick', function(event) {
-          console.log('OneSignal: Notification clicked:', event);
-          callback({
-            notification: {
-              title: event.title,
-              body: event.body
-            },
-            data: event.data || {}
-          });
+      });
+      
+      OneSignalSDK.on('notificationClick', function(event) {
+        console.log('OneSignal: Notification clicked:', event);
+        callback({
+          notification: {
+            title: event.notification?.title || event.title,
+            body: event.notification?.body || event.body
+          },
+          data: event.notification?.data || event.data || {}
         });
       });
     } catch (error) {
