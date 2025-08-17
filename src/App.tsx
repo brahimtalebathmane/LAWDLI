@@ -29,6 +29,10 @@ const AppRouter: React.FC = () => {
         notification.onclick = () => {
           notification.close();
           const deepLink = payload.data?.deepLink;
+        }
+      }
+    }
+    )
     // OneSignal handles foreground messages automatically through the SDK
     console.log('OneSignal: Foreground message handling is managed by OneSignal SDK');
   }, []);
