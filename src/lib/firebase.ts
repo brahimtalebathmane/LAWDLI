@@ -12,35 +12,36 @@ export const requestNotificationPermission = async (userId: string): Promise<str
 
     // Wait for OneSignal to be ready and associate with user
     return new Promise((resolve) => {
-      window.OneSignal = window.OneSignal || [];
-      window.OneSignal.push(function(OneSignalSDK) {
-        try {
-          // Set external user ID
-          OneSignalSDK.setExternalUserId(userId).then(() => {
+      if (typeof window !== 'undefined' && window.OneSignalDeferred) {
+        window.OneSignalDeferred.push(async function(OneSignal) {
+          try {
+            // Set external user ID
+            await OneSignal.login(userId);
             console.log('OneSignal: External user ID set successfully:', userId);
             
             // Get subscription status
-            OneSignalSDK.isPushNotificationsEnabled().then((isEnabled) => {
-              console.log('OneSignal: Push notifications enabled:', isEnabled);
-              
-              if (!isEnabled) {
-                // Request permission
-                OneSignalSDK.showNativePrompt();
-                console.log('OneSignal: Native prompt shown');
-              }
-              
-              // Get player ID (subscription ID)
-              OneSignalSDK.getPlayerId().then((playerId) => {
-                console.log('OneSignal: Player ID obtained:', playerId);
-                resolve(playerId || 'onesignal-subscribed');
-              });
-            });
-          });
-        } catch (error) {
-          console.error('OneSignal: Setup failed:', error);
-          resolve(null);
-        }
-      });
+            const isEnabled = await OneSignal.User.PushSubscription.optedIn;
+            console.log('OneSignal: Push notifications enabled:', isEnabled);
+            
+            if (!isEnabled) {
+              // Request permission
+              await OneSignal.Slidedown.promptPush();
+              console.log('OneSignal: Permission prompt shown');
+            }
+            
+            // Get subscription ID
+            const subscriptionId = OneSignal.User.PushSubscription.id;
+            console.log('OneSignal: Subscription ID obtained:', subscriptionId);
+            resolve(subscriptionId || 'onesignal-subscribed');
+          } catch (error) {
+            console.error('OneSignal: Setup failed:', error);
+            resolve(null);
+          }
+        });
+      } else {
+        console.error('OneSignal not available');
+        resolve(null);
+      }
     });
   } catch (error) {
     console.error('Error requesting notification permission:', error);
@@ -57,18 +58,16 @@ export const deleteFCMToken = async (userId: string): Promise<void> => {
   try {
     console.log('OneSignal: Logging out user:', userId);
     
-    window.OneSignal = window.OneSignal || [];
-    window.OneSignal.push(function(OneSignalSDK) {
-      try {
-        OneSignalSDK.removeExternalUserId().then(() => {
-          console.log('OneSignal: External user ID removed successfully');
-        }).catch((error) => {
+    if (typeof window !== 'undefined' && window.OneSignalDeferred) {
+      window.OneSignalDeferred.push(async function(OneSignal) {
+        try {
+          await OneSignal.logout();
+          console.log('OneSignal: User logged out successfully');
+        } catch (error) {
           console.error('OneSignal: Logout failed:', error);
-        });
-      } catch (error) {
-        console.error('OneSignal: Logout failed:', error);
-      }
-    });
+        }
+      });
+    }
   } catch (error) {
     console.error('Error logging out OneSignal user:', error);
   }
@@ -76,36 +75,26 @@ export const deleteFCMToken = async (userId: string): Promise<void> => {
 
 export const onForegroundMessage = (callback: (payload: any) => void) => {
   // OneSignal handles foreground messages automatically
-  console.log('OneSignal: Setting up foreground message handler');
+  console.log('OneSignal: Foreground message handling is managed by OneSignal SDK');
   
-  window.OneSignal = window.OneSignal || [];
-  window.OneSignal.push(function(OneSignalSDK) {
-    try {
-      OneSignalSDK.on('notificationDisplay', function(event) {
-        console.log('OneSignal: Notification displayed:', event);
-        callback({
-          notification: {
-            title: event.notification?.title || event.title,
-            body: event.notification?.body || event.body
-          },
-          data: event.notification?.data || event.data || {}
+  if (typeof window !== 'undefined' && window.OneSignalDeferred) {
+    window.OneSignalDeferred.push(async function(OneSignal) {
+      try {
+        OneSignal.Notifications.addEventListener('click', (event) => {
+          console.log('OneSignal: Notification clicked:', event);
+          callback({
+            notification: {
+              title: event.notification?.title || 'Notification',
+              body: event.notification?.body || ''
+            },
+            data: event.notification?.additionalData || {}
+          });
         });
-      });
-      
-      OneSignalSDK.on('notificationClick', function(event) {
-        console.log('OneSignal: Notification clicked:', event);
-        callback({
-          notification: {
-            title: event.notification?.title || event.title,
-            body: event.notification?.body || event.body
-          },
-          data: event.notification?.data || event.data || {}
-        });
-      });
-    } catch (error) {
-      console.error('OneSignal: Error setting up notification listeners:', error);
-    }
-  });
+      } catch (error) {
+        console.error('OneSignal: Error setting up notification listeners:', error);
+      }
+    });
+  }
 };
 
 // Declare OneSignal types for TypeScript

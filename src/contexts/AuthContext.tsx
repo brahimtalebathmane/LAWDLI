@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../lib/supabase';
-import { requestNotificationPermission, deleteFCMToken } from '../lib/firebase';
 
 interface AuthContextType {
   user: User | null;
@@ -54,35 +53,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = (userData: User) => {
     setUser(userData);
-    localStorage.setItem('lawdli_user', JSON.stringify(userData));
+    try {
+      localStorage.setItem('lawdli_user', JSON.stringify(userData));
+    } catch (error) {
+      console.error('Error saving user to localStorage:', error);
+    }
     
     // Associate user with OneSignal after successful login
     setTimeout(() => {
       console.log('AuthContext: Setting up OneSignal for user:', userData.id);
       
-      // Set external user ID in OneSignal
-      if (window.OneSignal) {
-        window.OneSignal.push(async function() {
+      if (typeof window !== 'undefined' && window.OneSignalDeferred) {
+        window.OneSignalDeferred.push(async function(OneSignal) {
           try {
-            await window.OneSignal.setExternalUserId(userData.id);
-            console.log('AuthContext: OneSignal external user ID set:', userData.id);
+            await OneSignal.login(userData.id);
+            console.log('AuthContext: OneSignal user logged in:', userData.id);
           } catch (error) {
-            console.error('AuthContext: Failed to set OneSignal external user ID:', error);
+            console.error('AuthContext: Failed to login OneSignal user:', error);
           }
         });
-      } else {
-        console.log('AuthContext: OneSignal not yet loaded, will be handled by initialization');
       }
     }, 1000);
   };
 
   const logout = () => {
-    // Remove external user ID from OneSignal
-    if (user) {
-      deleteFCMToken(user.id).catch(console.error);
+    // Remove user from OneSignal
+    if (user && typeof window !== 'undefined' && window.OneSignalDeferred) {
+      window.OneSignalDeferred.push(async function(OneSignal) {
+        try {
+          await OneSignal.logout();
+          console.log('AuthContext: OneSignal user logged out');
+        } catch (error) {
+          console.error('AuthContext: Failed to logout OneSignal user:', error);
+        }
+      });
     }
+    
     setUser(null);
-    localStorage.removeItem('lawdli_user');
+    try {
+      localStorage.removeItem('lawdli_user');
+    } catch (error) {
+      console.error('Error removing user from localStorage:', error);
+    }
   };
 
   return (

@@ -2,40 +2,13 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import Login from './components/Login';
 import AdminDashboard from './components/AdminDashboard';
 import UserDashboard from './components/UserDashboard';
 
 const AppRouter: React.FC = () => {
   const { user, isLoading } = useAuth();
-
-  // Handle foreground push messages via OneSignal
-  React.useEffect(() => {
-    console.log('Setting up OneSignal foreground message handler');
-    onForegroundMessage((payload) => {
-      console.log('OneSignal foreground message received:', payload);
-      if (payload.notification && 'Notification' in window && Notification.permission === 'granted') {
-        const notification = new Notification(payload.notification.title, {
-          body: payload.notification.body,
-          icon: 'https://i.postimg.cc/rygydTNp/9.png',
-          badge: 'https://i.postimg.cc/rygydTNp/9.png',
-          data: payload.data,
-          tag: 'lawdli-onesignal',
-          renotify: true,
-          requireInteraction: false,
-          vibrate: [200, 100, 200]
-        });
-
-        notification.onclick = () => {
-          notification.close();
-          const deepLink = payload.data?.deepLink;
-        }
-      }
-    }
-    )
-    // OneSignal handles foreground messages automatically through the SDK
-    console.log('OneSignal: Foreground message handling is managed by OneSignal SDK');
-  }, []);
 
   if (isLoading) {
     return (
@@ -63,13 +36,15 @@ const AppRouter: React.FC = () => {
 };
 
 const App: React.FC = () => (
-  <AuthProvider>
-    <LanguageProvider>
-      <Router>
-        <AppRouter />
-      </Router>
-    </LanguageProvider>
-  </AuthProvider>
+  <ErrorBoundary>
+    <AuthProvider>
+      <LanguageProvider>
+        <Router>
+          <AppRouter />
+        </Router>
+      </LanguageProvider>
+    </AuthProvider>
+  </ErrorBoundary>
 );
 
 export default App;

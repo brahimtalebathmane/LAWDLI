@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
-import { requestNotificationPermission } from '../lib/firebase';
 import { Bell, X } from 'lucide-react';
 
 const NotificationPermissionBanner: React.FC = () => {
@@ -34,17 +33,17 @@ const NotificationPermissionBanner: React.FC = () => {
     try {
       console.log('NotificationBanner: Requesting OneSignal permission...');
       
-      if (window.OneSignal) {
-        window.OneSignal.push(async function() {
+      if (typeof window !== 'undefined' && window.OneSignalDeferred) {
+        window.OneSignalDeferred.push(async function(OneSignal) {
           try {
-            // Set external user ID
-            await window.OneSignal.setExternalUserId(user.id);
+            // Login user to OneSignal
+            await OneSignal.login(user.id);
             
-            // Show native prompt
-            await window.OneSignal.showNativePrompt();
+            // Show permission prompt
+            await OneSignal.Slidedown.promptPush();
             
             // Check if subscribed
-            const isSubscribed = await window.OneSignal.isPushNotificationsEnabled();
+            const isSubscribed = OneSignal.User.PushSubscription.optedIn;
             
             if (isSubscribed) {
               console.log('NotificationBanner: OneSignal subscription successful');
