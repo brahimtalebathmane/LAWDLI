@@ -338,8 +338,8 @@ const UserDashboard: React.FC = () => {
                           src={request.image_url} 
                           alt={request.title}
                           className="rounded-lg shadow-sm"
-                          width={320}
-                          height={240}
+                          width={400}
+                          height={300}
                           loading="lazy"
                         />
                       </div>

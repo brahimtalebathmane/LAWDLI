@@ -321,10 +321,13 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
                     </h3>
                     <p className="text-gray-600 mb-3">{request.description}</p>
                     {request.image_url && (
-                      <img 
+                      <OptimizedImage
                         src={request.image_url} 
                         alt={request.title}
-                        className="w-20 h-20 object-cover rounded-lg mb-3"
+                        className="rounded-lg shadow-sm mb-3"
+                        width={160}
+                        height={120}
+                        loading="lazy"
                       />
                     )}
                     <div className="flex items-center gap-4 text-sm text-gray-500">

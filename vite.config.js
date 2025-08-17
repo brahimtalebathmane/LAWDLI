@@ -12,6 +12,7 @@ export default defineConfig({
     target: 'es2015',
     cssCodeSplit: true,
     chunkSizeWarningLimit: 1000,
+    assetsInlineLimit: 4096, // Inline small assets as base64
     rollupOptions: {
       output: {
         // Optimize chunk splitting for better caching
@@ -22,6 +23,9 @@ export default defineConfig({
           const ext = info[info.length - 1];
           if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
             return `assets/[name]-[hash][extname]`;
+          }
+          if (/woff2?|eot|ttf|otf/i.test(ext)) {
+            return `assets/fonts/[name]-[hash][extname]`;
           }
           return `assets/[name]-[hash][extname]`;
         },
