@@ -23,10 +23,6 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onStatsUpdate }) => {
 
   const { t } = useLanguage();
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
   const loadUsers = async () => {
     try {
       const { data, error } = await supabase
@@ -40,6 +36,10 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onStatsUpdate }) => {
       console.error('Error loading users:', error);
     }
   };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

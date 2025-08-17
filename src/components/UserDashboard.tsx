@@ -16,13 +16,6 @@ const UserDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const { t, language } = useLanguage();
 
-  // Get user's group IDs for filtering requests
-  useEffect(() => {
-    if (user) {
-      loadUserGroups();
-    }
-  }, [user]);
-
   const loadUserGroups = async () => {
     if (!user) return;
 
@@ -39,7 +32,14 @@ const UserDashboard: React.FC = () => {
     }
   };
 
-  // Use real-time data hook for requests
+  // Get user's group IDs for filtering requests
+  useEffect(() => {
+    if (user) {
+      loadUserGroups();
+    }
+  }, [user]);
+
+  // Use manual refresh data hook for requests
   const {
     data: requestGroups,
     isLoading: requestsLoading,
@@ -57,8 +57,8 @@ const UserDashboard: React.FC = () => {
     `,
     filter: userGroupIds.length > 0 ? { group_id: userGroupIds } : {},
     cacheKey: `user-requests-${user?.id}`,
-    cacheDuration: 15000, // 15 seconds
-    enableRealtime: true
+    cacheDuration: 300000, // 5 minutes cache
+    enableRealtime: false // Manual refresh only
   });
 
   // Process requests from request_groups data
@@ -77,7 +77,7 @@ const UserDashboard: React.FC = () => {
     );
   }, [requestGroups]);
 
-  // Use real-time data hook for user responses
+  // Use manual refresh data hook for user responses
   const {
     data: responsesData,
     isRefreshing: responsesRefreshing,
@@ -86,8 +86,8 @@ const UserDashboard: React.FC = () => {
     table: 'responses',
     filter: { user_id: user?.id },
     cacheKey: `user-responses-${user?.id}`,
-    cacheDuration: 10000, // 10 seconds
-    enableRealtime: true
+    cacheDuration: 300000, // 5 minutes cache
+    enableRealtime: false // Manual refresh only
   });
 
   useEffect(() => {

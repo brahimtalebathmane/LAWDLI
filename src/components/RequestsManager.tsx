@@ -27,7 +27,7 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
   const { t } = useLanguage();
   const { user } = useAuth();
 
-  // Use real-time data hooks
+  // Use manual refresh data hooks
   const {
     data: requests,
     isLoading: requestsLoading,
@@ -42,8 +42,8 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
     `,
     orderBy: { column: 'created_at', ascending: false },
     cacheKey: 'admin-requests',
-    cacheDuration: 20000,
-    enableRealtime: true
+    cacheDuration: 300000, // 5 minutes cache
+    enableRealtime: false // Manual refresh only
   });
 
   const {
@@ -53,8 +53,8 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
     table: 'groups',
     orderBy: { column: 'name', ascending: true },
     cacheKey: 'admin-groups',
-    cacheDuration: 60000,
-    enableRealtime: true
+    cacheDuration: 600000, // 10 minutes cache for groups
+    enableRealtime: false // Manual refresh only
   });
 
   const {
@@ -69,8 +69,8 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
     `,
     orderBy: { column: 'created_at', ascending: false },
     cacheKey: 'admin-responses',
-    cacheDuration: 15000,
-    enableRealtime: true
+    cacheDuration: 300000, // 5 minutes cache
+    enableRealtime: false // Manual refresh only
   });
 
   const refreshAllData = () => {

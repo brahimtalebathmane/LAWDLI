@@ -17,7 +17,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onStatsUpdate }
   const { user } = useAuth();
   const { t } = useLanguage();
 
-  // Use real-time data hook for notifications
+  // Use manual refresh data hook for notifications
   const {
     data: notifications,
     isLoading: notificationsLoading,
@@ -28,8 +28,8 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onStatsUpdate }
     filter: { user_id: user?.id },
     orderBy: { column: 'created_at', ascending: false },
     cacheKey: `notifications-${user?.id}`,
-    cacheDuration: 10000, // 10 seconds
-    enableRealtime: true
+    cacheDuration: 180000, // 3 minutes cache for notifications
+    enableRealtime: false // Manual refresh only
   });
 
   // Update stats when notifications change

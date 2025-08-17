@@ -24,12 +24,6 @@ const GroupsManager: React.FC<GroupsManagerProps> = ({ onStatsUpdate }) => {
 
   const { t } = useLanguage();
 
-  useEffect(() => {
-    loadGroups();
-    loadUsers();
-    loadGroupMembers();
-  }, []);
-
   const loadGroups = async () => {
     try {
       const { data, error } = await supabase
@@ -75,6 +69,12 @@ const GroupsManager: React.FC<GroupsManagerProps> = ({ onStatsUpdate }) => {
       console.error('Error loading group members:', error);
     }
   };
+
+  useEffect(() => {
+    loadGroups();
+    loadUsers();
+    loadGroupMembers();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

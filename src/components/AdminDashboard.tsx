@@ -30,57 +30,6 @@ const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     loadStats();
-    
-    // Set up real-time subscription for notifications
-    const notificationSubscription = supabase
-      .channel('admin-notifications')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${user?.id}`
-      }, () => {
-        loadStats();
-      })
-      .subscribe();
-    
-    // Set up real-time subscription for admin stats updates
-    const subscription = supabase
-      .channel('admin-realtime')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'requests'
-      }, () => {
-        loadStats();
-      })
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'responses'
-      }, () => {
-        loadStats();
-      })
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'groups'
-      }, () => {
-        loadStats();
-      })
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'users'
-      }, () => {
-        loadStats();
-      })
-      .subscribe();
-
-    return () => {
-      notificationSubscription.unsubscribe();
-      subscription.unsubscribe();
-    };
   }, []);
 
   const loadStats = async () => {

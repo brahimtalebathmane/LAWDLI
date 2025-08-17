@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabase';
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
-  isStale: boolean;
 }
 
 interface UseRealtimeDataOptions {
@@ -14,7 +13,7 @@ interface UseRealtimeDataOptions {
   orderBy?: { column: string; ascending?: boolean };
   cacheKey: string;
   cacheDuration?: number; // in milliseconds
-  enableRealtime?: boolean;
+  enableRealtime?: boolean; // Now defaults to false for manual refresh
 }
 
 export function useRealtimeData<T = any>({
@@ -23,8 +22,8 @@ export function useRealtimeData<T = any>({
   filter = {},
   orderBy,
   cacheKey,
-  cacheDuration = 30000, // 30 seconds default
-  enableRealtime = true
+  cacheDuration = 300000, // 5 minutes default cache
+  enableRealtime = false // Disabled by default for manual refresh
 }: UseRealtimeDataOptions) {
   const [data, setData] = useState<T[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,7 +41,8 @@ export function useRealtimeData<T = any>({
     
     const isExpired = Date.now() - cached.timestamp > cacheDuration;
     if (isExpired) {
-      cached.isStale = true;
+      cacheRef.current.delete(cacheKey);
+      return null;
     }
     
     return cached.data;
@@ -52,8 +52,7 @@ export function useRealtimeData<T = any>({
   const setCachedData = useCallback((newData: T[]) => {
     cacheRef.current.set(cacheKey, {
       data: newData,
-      timestamp: Date.now(),
-      isStale: false
+      timestamp: Date.now()
     });
   }, [cacheKey]);
 
@@ -114,28 +113,23 @@ export function useRealtimeData<T = any>({
     fetchData(true);
   }, [cacheKey, fetchData]);
 
-  // Initialize data
+  // Initialize data on mount only
   useEffect(() => {
     const cachedData = getCachedData();
     
-    if (cachedData && !cacheRef.current.get(cacheKey)?.isStale) {
+    if (cachedData) {
       // Use cached data immediately
       setData(cachedData);
       setIsLoading(false);
-      setLastUpdated(new Date(cacheRef.current.get(cacheKey)?.timestamp || Date.now()));
-      
-      // Still fetch fresh data in background if cache is getting old
       const cached = cacheRef.current.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp > cacheDuration / 2) {
-        fetchData(false);
-      }
+      setLastUpdated(new Date(cached?.timestamp || Date.now()));
     } else {
-      // No cache or stale cache, fetch fresh data
+      // No cache, fetch fresh data
       fetchData(true);
     }
-  }, [getCachedData, fetchData, cacheKey, cacheDuration]);
+  }, [getCachedData, fetchData, cacheKey]);
 
-  // Set up real-time subscription
+  // Set up real-time subscription only if enabled
   useEffect(() => {
     if (!enableRealtime) return;
 
