@@ -39,8 +39,7 @@ export default defineConfig({
           vendor: ['react', 'react-dom'],
           supabase: ['@supabase/supabase-js'],
           router: ['react-router-dom'],
-          icons: ['lucide-react'],
-          images: ['./src/lib/imageOptimization.ts']
+          icons: ['lucide-react']
         }
       }
     }
