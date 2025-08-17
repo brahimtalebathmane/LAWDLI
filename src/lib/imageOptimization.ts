@@ -9,24 +9,18 @@ interface CompressionOptions {
 }
 
 // Check browser support for modern formats
-export const supportsWebP = (): boolean => {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1;
-  canvas.height = 1;
-  return canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+// Get optimal format - use JPEG for maximum compatibility
+export const getOptimalFormat = (): 'jpeg' | 'png' => {
+  return 'jpeg'; // Default to JPEG for best compatibility
 };
 
-export const supportsAVIF = (): boolean => {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1;
-  canvas.height = 1;
-  return canvas.toDataURL('image/avif').indexOf('data:image/avif') === 0;
-};
-
-// Get optimal format based on browser support
-export const getOptimalFormat = (): 'avif' | 'webp' | 'jpeg' => {
-  if (supportsAVIF()) return 'avif';
-  if (supportsWebP()) return 'webp';
+// Determine best format based on image content
+export const getBestFormat = (file: File): 'jpeg' | 'png' => {
+  // Use PNG for images that might have transparency
+  if (file.type === 'image/png') {
+    return 'png';
+  }
+  // Use JPEG for all other images (better compression)
   return 'jpeg';
 };
 
@@ -39,7 +33,7 @@ export const compressImage = async (
     quality = 0.85,
     maxWidth = 1200,
     maxHeight = 1200,
-    format = getOptimalFormat()
+    format = getBestFormat(file)
   } = options;
 
   return new Promise((resolve, reject) => {
@@ -73,7 +67,7 @@ export const compressImage = async (
 
             const compressedFile = new File(
               [blob],
-              `${file.name.split('.')[0]}.${format === 'jpeg' ? 'jpg' : format}`,
+              `${file.name.split('.')[0]}.${format === 'jpeg' ? 'jpg' : 'png'}`,
               {
                 type: `image/${format}`,
                 lastModified: Date.now()
@@ -125,7 +119,7 @@ export const generatePlaceholder = async (file: File): Promise<string> => {
 
 // Validate image file
 export const validateImageFile = (file: File): boolean => {
-  const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/avif'];
+  const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
   const maxSize = 10 * 1024 * 1024; // 10MB
 
   return validTypes.includes(file.type) && file.size <= maxSize;
@@ -142,7 +136,7 @@ export const getOptimizedImageUrl = (url: string, width?: number, height?: numbe
       if (width) urlObj.searchParams.set('width', width.toString());
       if (height) urlObj.searchParams.set('height', height.toString());
       urlObj.searchParams.set('quality', '85');
-      urlObj.searchParams.set('format', 'webp');
+      urlObj.searchParams.set('format', 'jpeg');
       return urlObj.toString();
     }
     

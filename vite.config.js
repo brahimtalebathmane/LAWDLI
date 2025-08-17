@@ -40,7 +40,7 @@ export default defineConfig({
           supabase: ['@supabase/supabase-js'],
           router: ['react-router-dom'],
           icons: ['lucide-react'],
-          utils: ['date-fns']
+          images: ['./src/lib/imageOptimization.ts']
         }
       }
     }

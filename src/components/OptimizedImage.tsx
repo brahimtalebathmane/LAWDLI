@@ -74,7 +74,9 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
 
   // Optimize image URL for better performance
   const optimizedSrc = React.useMemo(() => {
-    if (!src || hasError) return placeholder || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlDQTNBRiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkxvYWRpbmcuLi48L3RleHQ+PC9zdmc+';
+    if (!src || hasError) {
+      return placeholder || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlDQTNBRiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkxvYWRpbmcuLi48L3RleHQ+PC9zdmc+';
+    }
     
     return getOptimizedImageUrl(src, width, height);
   }, [src, hasError, width, height]);
@@ -137,6 +139,10 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
           }}
           crossOrigin="anonymous"
           decoding="async"
+          style={{
+            aspectRatio: width && height ? `${width}/${height}` : undefined,
+            imageRendering: 'auto'
+          }}
         />
       )}
       
@@ -154,6 +160,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
               onClick={() => {
                 setHasError(false);
                 setIsLoaded(false);
+                setShowLowRes(!!lowResPlaceholder);
               }}
               className="text-xs text-blue-500 hover:text-blue-700 mt-1"
             >

@@ -92,7 +92,8 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
       const compressedImage = await compressImage(requestData.image, {
         quality: 0.85,
         maxWidth: 1200,
-        maxHeight: 1200
+        maxHeight: 1200,
+        format: 'jpeg'
       });
 
       // Upload image
@@ -439,19 +440,21 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
                   </label>
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/jpg,image/png"
                     onChange={handleImageChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">{t('imageRequired')}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {t('imageRequired')} (JPEG, PNG only)
+                  </p>
                   {formData.placeholder && (
                     <div className="mt-2">
                       <img
                         src={formData.placeholder}
                         alt="Preview"
                         className="w-20 h-20 object-cover rounded border filter blur-sm"
-                        style={{ imageRendering: 'pixelated' }}
+                        style={{ imageRendering: 'auto' }}
                       />
                       <p className="text-xs text-gray-500 mt-1">Preview (will be optimized on upload)</p>
                     </div>
