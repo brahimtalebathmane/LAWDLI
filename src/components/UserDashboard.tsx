@@ -7,7 +7,6 @@ import { useOptimisticMutation } from '../hooks/useOptimisticMutation';
 import Layout from './Layout';
 import RefreshButton from './RefreshButton';
 import LoadingSpinner from './LoadingSpinner';
-import OptimizedImage from './OptimizedImage';
 import { MessageSquare, Clock, CheckCircle, LogOut } from 'lucide-react';
 
 const UserDashboard: React.FC = () => {
@@ -334,14 +333,11 @@ const UserDashboard: React.FC = () => {
                     
                     {request.image_url && (
                       <div className="mb-4">
-                        <OptimizedImage
-                          src={request.image_url} 
+                        <img
+                          src={request.image_url}
                           alt={request.title}
-                          className="rounded-lg shadow-sm"
-                          width={400}
-                          height={300}
+                          className="max-w-full h-auto rounded-lg shadow-sm"
                           loading="lazy"
-                          placeholder={createFallbackPlaceholder(400, 300)}
                         />
                       </div>
                     )}

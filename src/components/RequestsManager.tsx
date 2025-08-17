@@ -4,10 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase, Request, Group, Response } from '../lib/supabase';
 import { useOptimizedQuery } from '../hooks/useOptimizedQuery';
 import { useOptimisticMutation } from '../hooks/useOptimisticMutation';
-import { compressImage, generatePlaceholder, validateImageFile } from '../lib/imageOptimization';
 import RefreshButton from './RefreshButton';
 import LoadingSpinner from './LoadingSpinner';
-import OptimizedImage from './OptimizedImage';
 import { Plus, Send, Upload, Eye, Trash2, Edit } from 'lucide-react';
 
 interface RequestsManagerProps {
@@ -24,8 +22,7 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
     title: '',
     description: '',
     selectedGroups: [] as string[],
-    image: null as File | null,
-    placeholder: null as string | null
+    image: null as File | null
   });
 
   const { t } = useLanguage();
@@ -86,23 +83,15 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
   const { mutate: createRequest, isLoading: isCreating } = useOptimisticMutation(
     async (requestData: typeof formData) => {
       if (!user) throw new Error('User not authenticated');
-      if (!requestData.image) throw new Error('At least one image is required');
-
-      // Compress image before upload
-      const compressedImage = await compressImage(requestData.image, {
-        quality: 0.85,
-        maxWidth: 1200,
-        maxHeight: 1200,
-        format: 'jpeg'
-      });
+      if (!requestData.image) throw new Error('Image is required');
 
       // Upload image
-      const fileExt = compressedImage.name.split('.').pop();
+      const fileExt = requestData.image.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
       
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('request-images')
-        .upload(fileName, compressedImage, {
+        .upload(fileName, requestData.image, {
           cacheControl: '3600',
           upsert: false
         });
@@ -180,27 +169,19 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!validateImageFile(file)) {
+    // Basic validation
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    
+    if (!validTypes.includes(file.type) || file.size > maxSize) {
       alert('Please select a valid image file (JPEG or PNG) under 10MB');
       return;
     }
 
-    try {
-      // Generate low-res placeholder immediately
-      const placeholder = await generatePlaceholder(file);
-      setFormData({
-        ...formData,
-        image: file,
-        placeholder
-      });
-    } catch (error) {
-      console.error('Error processing image:', error);
-      setFormData({
-        ...formData,
-        image: file,
-        placeholder: null
-      });
-    }
+    setFormData({
+      ...formData,
+      image: file
+    });
   };
 
   const sendPushNotificationsToGroups = async (request: Request, groupIds: string[]) => {
@@ -362,12 +343,10 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
                     </h3>
                     <p className="text-gray-600 mb-3">{request.description}</p>
                     {request.image_url && (
-                      <OptimizedImage
-                        src={request.image_url} 
+                      <img
+                        src={request.image_url}
                         alt={request.title}
-                        className="rounded-lg shadow-sm mb-3 bg-gray-100"
-                        width={160}
-                        height={120}
+                        className="w-40 h-30 object-cover rounded-lg shadow-sm mb-3"
                         loading="lazy"
                       />
                     )}
@@ -436,7 +415,7 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('uploadImage')} *
+                    Upload Image *
                   </label>
                   <input
                     type="file"
@@ -446,16 +425,13 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
                     required
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    JPEG or PNG format only, max 10MB
+                    JPEG or PNG format, max 10MB
                   </p>
-                  {formData.placeholder && (
+                  {formData.image && (
                     <div className="mt-2">
-                      <img
-                        src={formData.placeholder}
-                        alt="Preview"
-                        className="w-20 h-20 object-cover rounded border"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Preview - will be compressed on upload</p>
+                      <p className="text-xs text-green-600">
+                        Selected: {formData.image.name}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -509,8 +485,7 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
                         title: '',
                         description: '',
                         selectedGroups: [],
-                        image: null,
-                        placeholder: null
+                        image: null
                       });
                       setIsModalOpen(false);
                     }}
