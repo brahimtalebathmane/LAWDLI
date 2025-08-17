@@ -14,24 +14,24 @@ export const requestNotificationPermission = async (userId: string): Promise<str
     // Wait for OneSignal to be ready and associate with user
     return new Promise((resolve) => {
       window.OneSignal = window.OneSignal || [];
-      window.OneSignal.push(async function() {
+      window.OneSignal.push(async function(OneSignal) {
         try {
           // Set external user ID
-          await window.OneSignal.setExternalUserId(userId);
+          await OneSignal.setExternalUserId(userId);
           console.log('OneSignal: External user ID set successfully:', userId);
           
           // Get subscription status
-          const isSubscribed = await window.OneSignal.isPushNotificationsEnabled();
+          const isSubscribed = await OneSignal.isPushNotificationsEnabled();
           console.log('OneSignal: Push notifications enabled:', isSubscribed);
           
           if (!isSubscribed) {
             // Request permission
-            await window.OneSignal.showNativePrompt();
+            await OneSignal.showNativePrompt();
             console.log('OneSignal: Native prompt shown');
           }
           
           // Get player ID (subscription ID)
-          const playerId = await window.OneSignal.getPlayerId();
+          const playerId = await OneSignal.getPlayerId();
           console.log('OneSignal: Player ID obtained:', playerId);
           
           resolve(playerId || 'onesignal-subscribed');
@@ -57,9 +57,9 @@ export const deleteFCMToken = async (userId: string): Promise<void> => {
     console.log('OneSignal: Logging out user:', userId);
     
     window.OneSignal = window.OneSignal || [];
-    window.OneSignal.push(async function() {
+    window.OneSignal.push(async function(OneSignal) {
       try {
-        await window.OneSignal.removeExternalUserId();
+        await OneSignal.removeExternalUserId();
         console.log('OneSignal: External user ID removed successfully');
       } catch (error) {
         console.error('OneSignal: Logout failed:', error);
@@ -75,9 +75,9 @@ export const onForegroundMessage = (callback: (payload: any) => void) => {
   console.log('OneSignal: Setting up foreground message handler');
   
   window.OneSignal = window.OneSignal || [];
-  window.OneSignal.push(function() {
+  window.OneSignal.push(function(OneSignal) {
     try {
-      window.OneSignal.on('notificationDisplay', function(event) {
+      OneSignal.on('notificationDisplay', function(event) {
         console.log('OneSignal: Notification displayed:', event);
         callback({
           notification: {
@@ -88,7 +88,7 @@ export const onForegroundMessage = (callback: (payload: any) => void) => {
         });
       });
       
-      window.OneSignal.on('notificationClick', function(event) {
+      OneSignal.on('notificationClick', function(event) {
         console.log('OneSignal: Notification clicked:', event);
         callback({
           notification: {
