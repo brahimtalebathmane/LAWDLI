@@ -1,22 +1,21 @@
 لودلي | LAWDLI
 
-## Firebase Cloud Messaging (FCM) Integration
+## OneSignal Web Push Integration
 
-This application uses Firebase Cloud Messaging for real-time push notifications on mobile and desktop devices.
+This application uses OneSignal Web Push (v16) for real-time push notifications on mobile and desktop devices.
 
-### Firebase Configuration
+### OneSignal Configuration
 
-The application is pre-configured with the following Firebase project:
-- **Project ID**: lawdli
-- **App ID**: 1:1095350923790:web:93631ae307a6ecdce5425f
-- **VAPID Key**: BOPyVXW3oxnwPsk1dKk1gcTWhfREpYbNDv3YHPedB-7zIXUoHlp6otcX1ypLj068bIZnunwrbqzaeTjnzG_vyc0
+The application is configured with the following OneSignal project:
+- **App ID**: 2c99c3ab-54b1-4edb-b687-a436250ca0c4
+- **Safari Web ID**: web.onesignal.auto.5f80e2fb-b063-4ecb-90f7-0c7e45de9678
 
 ### Push Notification Features
 
 1. **Automatic Token Registration**
-   - FCM tokens are automatically registered when users log in
-   - Tokens are stored in the `user_tokens` table in Supabase
-   - One unique token per user (upsert on user_id)
+   - OneSignal subscriptions are automatically associated with user IDs when users log in
+   - External user IDs map to your app's user.id
+   - No manual token storage required (OneSignal handles this)
 
 2. **Notification Triggers**
    - **New Request**: Sent to all users in selected groups when admin creates a request
@@ -31,74 +30,49 @@ The application is pre-configured with the following Firebase project:
    - Notification text localized in Arabic and French
    - Uses existing i18n system for consistency
 
-### Database Schema
-
-**New Table: user_tokens**
-```sql
-CREATE TABLE user_tokens (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
-  fcm_token text NOT NULL,
-  created_at timestamptz DEFAULT now(),
-  UNIQUE(user_id)
-);
-```
-
-**Updated: requests table**
-- `title` and `description` columns are now nullable (optional)
-- Image upload remains required (validated in UI)
-
 ### Server Configuration
 
-For the push notification edge function to work, you need to set the FCM server key in your Supabase environment:
+For the push notification edge function to work, you need to set OneSignal credentials in your Supabase environment:
 
 ```bash
 # In your Supabase project settings > Edge Functions > Environment Variables
-FCM_SERVER_KEY=your_fcm_server_key_here
+ONESIGNAL_APP_ID=2c99c3ab-54b1-4edb-b687-a436250ca0c4
+ONESIGNAL_REST_API_KEY=your_onesignal_rest_api_key_here
 ```
 
-**CRITICAL: FCM Server Key Setup**
+**CRITICAL: OneSignal REST API Key Setup**
 
-1. **Get Firebase Service Account (Recommended):**
-   - Go to [Firebase Console](https://console.firebase.google.com/)
-   - Select your project: `lawdli`
-   - Go to Project Settings → Service Accounts
-   - Click "Generate new private key"
-   - Download the JSON file
+1. **Get OneSignal REST API Key:**
+   - Go to [OneSignal Dashboard](https://app.onesignal.com/)
+   - Select your app: `lawdli`
+   - Go to Settings → Keys & IDs
+   - Copy "REST API Key"
 
 2. **Set in Supabase:**
    - Go to your Supabase project dashboard
    - Navigate to Edge Functions → Environment Variables
    - Add the following variables:
-     - `FIREBASE_PROJECT_ID` = `your_project_id`
-     - `FIREBASE_CLIENT_EMAIL` = `firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com`
-     - `FIREBASE_PRIVATE_KEY` = `"-----BEGIN PRIVATE KEY-----\nYOUR_KEY\n-----END PRIVATE KEY-----\n"`
-     - `FIREBASE_TOKEN_URI` = `https://oauth2.googleapis.com/token`
+     - `ONESIGNAL_APP_ID` = `2c99c3ab-54b1-4edb-b687-a436250ca0c4`
+     - `ONESIGNAL_REST_API_KEY` = `your_rest_api_key_here`
    - Deploy the edge function: `supabase functions deploy send-push-notifications`
 
 3. **Verify Setup:**
-   - Check browser console for "Firebase Service Account status: Present"
+   - Check browser console for "OneSignal initialized"
    - Test notifications by responding to requests
    - Check Edge Function logs in Supabase dashboard
 
 ## Setup Instructions
 
-### Firebase Push Notifications Setup
+### OneSignal Push Notifications Setup
 
-The application is pre-configured with Firebase. You only need to:
+The application is pre-configured with OneSignal. You only need to:
 
-1. **Set FCM Server Key in Supabase**
+1. **Set OneSignal REST API Key in Supabase**
    - Go to your Supabase project dashboard
    - Navigate to Edge Functions → Environment Variables
-   - Add: `FCM_SERVER_KEY` with your Firebase server key
+   - Add: `ONESIGNAL_REST_API_KEY` with your OneSignal REST API key
 
-2. **Deploy Database Migrations**
-   ```bash
-   # Run the migrations to create user_tokens table and update requests
-   supabase db push
-   ```
-
-3. **Deploy Edge Function**
+2. **Deploy Edge Function**
    ```bash
    # Deploy the push notification function
    supabase functions deploy send-push-notifications
@@ -120,7 +94,7 @@ The application is pre-configured with Firebase. You only need to:
 - Multi-language support (Arabic/French)
 - Admin and user role management
 - Group-based request distribution
-- Real-time push notifications via Firebase FCM
+- Real-time push notifications via OneSignal Web Push
 - PWA installable on mobile devices
 - Always loads fresh content from server
 

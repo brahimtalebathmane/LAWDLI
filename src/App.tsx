@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
-import { onForegroundMessage, getFCMToken } from './lib/firebase';
+import { onForegroundMessage } from './lib/firebase';
 import Login from './components/Login';
 import AdminDashboard from './components/AdminDashboard';
 import UserDashboard from './components/UserDashboard';
@@ -10,46 +10,18 @@ import UserDashboard from './components/UserDashboard';
 const AppRouter: React.FC = () => {
   const { user, isLoading } = useAuth();
 
-  // Register Firebase messaging service worker
+  // Handle foreground push messages via OneSignal
   React.useEffect(() => {
-    if ('serviceWorker' in navigator && import.meta.env.VITE_DISABLE_FCM_SW_REGISTRATION !== 'true') {
-      // Register Firebase messaging service worker for notifications only
-      navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
-        .then(registration => {
-          console.log('Firebase messaging SW registered:', registration);
-        })
-        .catch(err => {
-          if (!err.message?.includes('StackBlitz')) {
-            console.error('Firebase messaging SW registration failed:', err);
-          }
-        });
-      
-      // Listen for service worker messages
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        // Handle notification clicks and deep links without reload
-        if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
-          const deepLink = event.data.deepLink;
-          if (deepLink && deepLink !== '/') {
-            // Navigate without reload
-            window.history.pushState({}, '', deepLink);
-          }
-        }
-      });
-    }
-  }, []);
-
-  // Handle foreground push messages
-  React.useEffect(() => {
-    console.log('Setting up foreground message handler');
+    console.log('Setting up OneSignal foreground message handler');
     onForegroundMessage((payload) => {
-      console.log('Foreground message received:', payload);
+      console.log('OneSignal foreground message received:', payload);
       if (payload.notification && 'Notification' in window && Notification.permission === 'granted') {
         const notification = new Notification(payload.notification.title, {
           body: payload.notification.body,
           icon: 'https://i.postimg.cc/rygydTNp/9.png',
           badge: 'https://i.postimg.cc/rygydTNp/9.png',
           data: payload.data,
-          tag: 'lawdli-foreground',
+          tag: 'lawdli-onesignal',
           renotify: true,
           requireInteraction: false,
           vibrate: [200, 100, 200]
@@ -64,21 +36,10 @@ const AppRouter: React.FC = () => {
 
         setTimeout(() => notification.close(), 5000);
       } else {
-        console.log('Cannot show foreground notification - permission not granted or no notification data');
+        console.log('OneSignal handles notifications automatically');
       }
     });
   }, []);
-
-  // Re-get FCM token when app becomes active (online-only refresh)
-  React.useEffect(() => {
-    const handleFocus = () => {
-      if (user && 'Notification' in window && Notification.permission === 'granted') {
-        getFCMToken(user.id).catch(console.error);
-      }
-    };
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [user]);
 
   if (isLoading) {
     return (

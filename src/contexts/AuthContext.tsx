@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../lib/supabase';
-import { requestNotificationPermission, deleteFCMToken, getFCMToken } from '../lib/firebase';
+import { requestNotificationPermission, deleteFCMToken } from '../lib/firebase';
 
 interface AuthContextType {
   user: User | null;
@@ -56,30 +56,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(userData);
     localStorage.setItem('lawdli_user', JSON.stringify(userData));
     
-    // Request notification permission and get FCM token after login with delay
+    // Associate user with OneSignal after login
     setTimeout(() => {
       if ('Notification' in window && 'serviceWorker' in navigator) {
         console.log('Current notification permission:', Notification.permission);
         
         if (Notification.permission === 'granted') {
-          // Already granted, get the token
-          getFCMToken(userData.id).then(token => {
-            if (token) {
-              console.log('FCM token obtained after login');
+          // Already granted, associate with OneSignal
+          requestNotificationPermission(userData.id).then(result => {
+            if (result) {
+              console.log('OneSignal user associated after login');
             } else {
-              console.log('Failed to get FCM token after login');
+              console.log('Failed to associate OneSignal user after login');
             }
           }).catch(console.error);
         } else if (Notification.permission === 'default') {
-          // Will be handled by NotificationPermissionBanner
+          // Will be handled by NotificationPermissionBanner with OneSignal
           console.log('Notification permission not yet requested');
         }
       }
-    }, 2000); // Increased delay to ensure service worker is ready
+    }, 1000); // OneSignal initializes faster than Firebase
   };
 
   const logout = () => {
-    // Delete FCM token on logout
+    // Logout from OneSignal
     if (user) {
       deleteFCMToken(user.id).catch(console.error);
     }
