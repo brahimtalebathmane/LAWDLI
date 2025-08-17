@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../lib/supabase';
 import { getOneSignalToken, logoutOneSignalUser } from '../lib/onesignal';
+import { initializeCleanupScheduler, stopCleanupScheduler } from '../lib/cleanupScheduler';
 
 interface AuthContextType {
   user: User | null;
@@ -72,12 +73,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.error('AuthContext: Failed to get OneSignal token:', error);
       });
     }, 1000);
+
+    // Initialize cleanup scheduler for admin users
+    if (userData.role === 'admin') {
+      setTimeout(() => {
+        initializeCleanupScheduler();
+      }, 2000); // Start after OneSignal setup
+    }
   };
 
   const logout = () => {
     if (user) {
       logoutOneSignalUser(user.id);
     }
+    
+    // Stop cleanup scheduler
+    stopCleanupScheduler();
     
     setUser(null);
     try {
