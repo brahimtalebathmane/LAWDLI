@@ -114,7 +114,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   }, [src, hasError, placeholder, width, height]);
 
   // Enhanced error handling with retry logic
-  const handleError = () => {
+  const handleErrorEnhanced = () => {
     console.warn('Image failed to load:', src);
     setHasError(true);
     onError?.();
@@ -125,7 +125,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
     if (loading === 'eager' && optimizedSrc && optimizedSrc !== placeholder) {
       const img = new Image();
       img.onload = () => setIsLoaded(true);
-      img.onerror = handleError;
+      img.onerror = handleErrorEnhanced;
       img.src = optimizedSrc;
     }
   }, [optimizedSrc, loading, placeholder]);
@@ -140,6 +140,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
             <span className="text-xs text-gray-400">Loading...</span>
           </div>
         </div>
+      )}
       {/* Main image with enhanced error handling */}
       {(isInView || loading === 'eager') && !hasError && (
         <img
@@ -150,7 +151,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
           height={height}
           loading={loading}
           onLoad={handleLoad}
-          onError={handleError}
+          onError={handleErrorEnhanced}
           className={`w-full h-full object-cover transition-opacity duration-300 ${
             isLoaded ? 'opacity-100' : 'opacity-0'
           }`}
@@ -181,55 +182,6 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
               Retry
             </button>
           </div>
-        </div>
-      )}
-      
-      {/* Loading indicator */}
-      {!isLoaded && !hasError && isInView && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-  return (
-    <div className={`relative overflow-hidden ${className}`} style={{ width, height }}>
-      {/* Placeholder/Loading state */}
-      {!isLoaded && !hasError && (
-        <img
-          src={placeholder}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover blur-sm"
-          style={{ filter: 'blur(5px)' }}
-        />
-      )}
-      
-      {/* Main image */}
-      {(isInView || loading === 'eager') && (
-        <img
-          ref={imgRef}
-          src={optimizedSrc}
-          alt={alt}
-          width={width}
-          height={height}
-          loading={loading}
-          onLoad={handleLoad}
-          onError={handleError}
-          className={`w-full h-full object-cover transition-opacity duration-300 ${
-            isLoaded ? 'opacity-100' : 'opacity-0'
-          }`}
-          style={{
-            aspectRatio: width && height ? `${width}/${height}` : undefined
-          }}
-        />
-      )}
-      
-      {/* Error state */}
-      {hasError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-400 text-sm">
-          Failed to load image
         </div>
       )}
       
