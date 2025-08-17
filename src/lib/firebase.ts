@@ -75,27 +75,29 @@ export const onForegroundMessage = (callback: (payload: any) => void) => {
   console.log('OneSignal: Setting up foreground message handler');
   
   window.OneSignal = window.OneSignal || [];
-  window.OneSignal.push(function(OneSignal) {
+  window.OneSignal.push(function() {
     try {
-      OneSignal.on('notificationDisplay', function(event) {
-        console.log('OneSignal: Notification displayed:', event);
-        callback({
-          notification: {
-            title: event.title,
-            body: event.body
-          },
-          data: event.data || {}
+      this.ready(() => {
+        this.on('notificationDisplay', function(event) {
+          console.log('OneSignal: Notification displayed:', event);
+          callback({
+            notification: {
+              title: event.title,
+              body: event.body
+            },
+            data: event.data || {}
+          });
         });
-      });
-      
-      OneSignal.on('notificationClick', function(event) {
-        console.log('OneSignal: Notification clicked:', event);
-        callback({
-          notification: {
-            title: event.title,
-            body: event.body
-          },
-          data: event.data || {}
+        
+        this.on('notificationClick', function(event) {
+          console.log('OneSignal: Notification clicked:', event);
+          callback({
+            notification: {
+              title: event.title,
+              body: event.body
+            },
+            data: event.data || {}
+          });
         });
       });
     } catch (error) {
