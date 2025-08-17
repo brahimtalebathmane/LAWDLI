@@ -9,6 +9,12 @@ export default defineConfig({
     assetsDir: 'assets',
     sourcemap: false,
     minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    },
     target: 'es2015',
     cssCodeSplit: true,
     chunkSizeWarningLimit: 1000,
@@ -22,7 +28,7 @@ export default defineConfig({
           const info = assetInfo.name.split('.');
           const ext = info[info.length - 1];
           if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
-            return `assets/[name]-[hash][extname]`;
+            return `assets/images/[name]-[hash][extname]`;
           }
           if (/woff2?|eot|ttf|otf/i.test(ext)) {
             return `assets/fonts/[name]-[hash][extname]`;
@@ -33,7 +39,8 @@ export default defineConfig({
           vendor: ['react', 'react-dom'],
           supabase: ['@supabase/supabase-js'],
           router: ['react-router-dom'],
-          icons: ['lucide-react']
+          icons: ['lucide-react'],
+          utils: ['date-fns']
         }
       }
     }

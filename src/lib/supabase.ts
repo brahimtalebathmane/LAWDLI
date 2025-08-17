@@ -5,33 +5,6 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Image URL helper function
-export const getOptimizedImageUrl = (url: string, width?: number, height?: number): string => {
-  if (!url) return '';
-  
-  try {
-    // Handle Supabase storage URLs
-    if (url.includes('supabase') && url.includes('/storage/v1/object/public/')) {
-      const urlObj = new URL(url);
-      if (width) urlObj.searchParams.set('width', width.toString());
-      if (height) urlObj.searchParams.set('height', height.toString());
-      urlObj.searchParams.set('quality', '85');
-      urlObj.searchParams.set('format', 'webp');
-      return urlObj.toString();
-    }
-    
-    // Handle relative URLs
-    if (url.startsWith('/') && !url.startsWith('//')) {
-      return `${window.location.origin}${url}`;
-    }
-    
-    return url;
-  } catch (error) {
-    console.warn('Error optimizing image URL:', error);
-    return url;
-  }
-};
-
 // Database types
 export interface User {
   id: string;
