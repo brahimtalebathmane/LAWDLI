@@ -18,6 +18,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="LAWDLI" />
     
+    <!-- OneSignal SDK -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    
     <title>لودلي | LAWDLI - Resource Group Communication</title>
   </head>
   <body>
@@ -54,17 +57,22 @@
       }
     </script>
   
-  <!-- OneSignal Web Push SDK -->
-  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-  <script>
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    OneSignalDeferred.push(async function(OneSignal) {
-      await OneSignal.init({
-        appId: "2c99c3ab-54b1-4edb-b687-a436250ca0c4",
-        safari_web_id: "web.onesignal.auto.5f80e2fb-b063-4ecb-90f7-0c7e45de9678",
-        notifyButton: { enable: true }
+    <!-- OneSignal Initialization -->
+    <script>
+      window.OneSignal = window.OneSignal || [];
+      OneSignal.push(function() {
+        OneSignal.init({
+          appId: '2c99c3ab-54b1-4edb-b687-a436250ca0c4',
+          safari_web_id: 'web.onesignal.auto.5f80e2fb-b063-4ecb-90f7-0c7e45de9678',
+          notifyButton: { enable: true }
+        });
+
+        OneSignal.isPushNotificationsEnabled(function(isEnabled) {
+          if (!isEnabled) {
+            OneSignal.showNativePrompt();  // Request permission on mobile
+          }
+        });
       });
-    });
-  </script>
+    </script>
   </body>
 </html>

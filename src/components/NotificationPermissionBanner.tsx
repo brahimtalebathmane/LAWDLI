@@ -32,10 +32,58 @@ const NotificationPermissionBanner: React.FC = () => {
     
     setIsLoading(true);
     try {
-      console.log('Requesting notification permission...');
-      const token = await requestNotificationPermission(user.id);
-      if (token) {
-        console.log('Notification permission granted and token saved:', token.substring(0, 20) + '...');
+      console.log('NotificationBanner: Requesting OneSignal permission...');
+      
+      if (window.OneSignal) {
+        window.OneSignal.push(async function() {
+          try {
+            // Set external user ID
+            await window.OneSignal.setExternalUserId(user.id);
+            
+            // Show native prompt
+            await window.OneSignal.showNativePrompt();
+            
+            // Check if subscribed
+            const isSubscribed = await window.OneSignal.isPushNotificationsEnabled();
+            
+            if (isSubscribed) {
+              console.log('NotificationBanner: OneSignal subscription successful');
+              setShowBanner(false);
+              
+              // Show test notification
+              if ('Notification' in window && Notification.permission === 'granted') {
+                const testNotification = new Notification('لودلي | LAWDLI', {
+                  body: 'Notifications are now enabled!',
+                  icon: 'https://i.postimg.cc/rygydTNp/9.png',
+                  tag: 'test-notification',
+                  requireInteraction: false,
+                  vibrate: [200, 100, 200]
+                });
+                
+                setTimeout(() => {
+                  testNotification.close();
+                }, 5000);
+              }
+            } else {
+              console.log('NotificationBanner: OneSignal subscription failed or denied');
+              alert(t('notifications.permission_denied'));
+            }
+          } catch (error) {
+            console.error('NotificationBanner: OneSignal error:', error);
+            alert('Failed to enable notifications. Please try again.');
+          }
+        });
+      } else {
+        console.error('NotificationBanner: OneSignal not available');
+        alert('OneSignal not loaded. Please refresh the page.');
+      }
+    } catch (error) {
+      console.error('NotificationBanner: Error enabling notifications:', error);
+      alert('Failed to enable notifications. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
         setShowBanner(false);
         // Test notification to confirm it's working
         if ('Notification' in window && Notification.permission === 'granted') {

@@ -56,30 +56,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(userData);
     localStorage.setItem('lawdli_user', JSON.stringify(userData));
     
-    // Associate user with OneSignal after login
+    // Associate user with OneSignal after successful login
     setTimeout(() => {
-      if ('Notification' in window && 'serviceWorker' in navigator) {
-        console.log('Current notification permission:', Notification.permission);
-        
-        if (Notification.permission === 'granted') {
-          // Already granted, associate with OneSignal
-          requestNotificationPermission(userData.id).then(result => {
-            if (result) {
-              console.log('OneSignal user associated after login');
-            } else {
-              console.log('Failed to associate OneSignal user after login');
-            }
-          }).catch(console.error);
-        } else if (Notification.permission === 'default') {
-          // Will be handled by NotificationPermissionBanner with OneSignal
-          console.log('Notification permission not yet requested');
-        }
+      console.log('AuthContext: Setting up OneSignal for user:', userData.id);
+      
+      // Set external user ID in OneSignal
+      if (window.OneSignal) {
+        window.OneSignal.push(async function() {
+          try {
+            await window.OneSignal.setExternalUserId(userData.id);
+            console.log('AuthContext: OneSignal external user ID set:', userData.id);
+          } catch (error) {
+            console.error('AuthContext: Failed to set OneSignal external user ID:', error);
+          }
+        });
+      } else {
+        console.log('AuthContext: OneSignal not yet loaded, will be handled by initialization');
       }
-    }, 1000); // OneSignal initializes faster than Firebase
+    }, 1000);
   };
 
   const logout = () => {
-    // Logout from OneSignal
+    // Remove external user ID from OneSignal
     if (user) {
       deleteFCMToken(user.id).catch(console.error);
     }
