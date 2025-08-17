@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { getOptimizedImageUrl } from '../lib/imageOptimization';
 
 interface OptimizedImageProps {
   src: string;
@@ -10,6 +11,7 @@ interface OptimizedImageProps {
   placeholder?: string;
   onLoad?: () => void;
   onError?: () => void;
+  lowResPlaceholder?: string;
 }
 
 const OptimizedImage: React.FC<OptimizedImageProps> = ({
@@ -19,13 +21,15 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   width,
   height,
   loading = 'lazy',
-  placeholder = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlDQTNBRiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkxvYWRpbmcuLi48L3RleHQ+PC9zdmc+',
+  placeholder,
+  lowResPlaceholder,
   onLoad,
   onError
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [isInView, setIsInView] = useState(loading === 'eager');
+  const [showLowRes, setShowLowRes] = useState(!!lowResPlaceholder);
   const imgRef = useRef<HTMLImageElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
@@ -59,6 +63,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
 
   const handleLoad = () => {
     setIsLoaded(true);
+    setShowLowRes(false);
     onLoad?.();
   };
 
@@ -69,49 +74,10 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
 
   // Optimize image URL for better performance
   const optimizedSrc = React.useMemo(() => {
-    if (!src || hasError) return placeholder;
+    if (!src || hasError) return placeholder || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlDQTNBRiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkxvYWRpbmcuLi48L3RleHQ+PC9zdmc+';
     
-    // Handle relative paths by converting to absolute URLs
-    let processedSrc = src;
-    if (src.startsWith('/') && !src.startsWith('//')) {
-      processedSrc = `${window.location.origin}${src}`;
-    }
-    
-    // If it's a Supabase storage URL, we can add optimization parameters
-    if (processedSrc.includes('supabase') && width && height) {
-      try {
-        const url = new URL(processedSrc);
-        url.searchParams.set('width', width.toString());
-        url.searchParams.set('height', height.toString());
-        url.searchParams.set('quality', '85');
-        url.searchParams.set('format', 'webp');
-        return url.toString();
-      } catch (error) {
-        console.warn('Invalid URL for optimization:', processedSrc);
-        return processedSrc;
-      }
-    }
-    
-    // Handle external URLs (like Pexels, Unsplash, etc.)
-    if (processedSrc.includes('pexels.com') || processedSrc.includes('unsplash.com')) {
-      try {
-        const url = new URL(processedSrc);
-        if (width && height) {
-          // Add size parameters for external image services
-          url.searchParams.set('w', width.toString());
-          url.searchParams.set('h', height.toString());
-          url.searchParams.set('fit', 'crop');
-          url.searchParams.set('auto', 'format,compress');
-        }
-        return url.toString();
-      } catch (error) {
-        console.warn('Invalid external URL:', processedSrc);
-        return processedSrc;
-      }
-    }
-    
-    return processedSrc;
-  }, [src, hasError, placeholder, width, height]);
+    return getOptimizedImageUrl(src, width, height);
+  }, [src, hasError, width, height]);
 
   // Enhanced error handling with retry logic
   const handleErrorEnhanced = () => {
@@ -132,8 +98,18 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
 
   return (
     <div className={`relative overflow-hidden ${className}`} style={{ width, height }}>
-      {/* Enhanced placeholder with better styling */}
-      {!isLoaded && !hasError && (
+      {/* Low-res placeholder for instant display */}
+      {showLowRes && lowResPlaceholder && !hasError && (
+        <img
+          src={lowResPlaceholder}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover filter blur-sm scale-110 transition-opacity duration-300"
+          style={{ imageRendering: 'pixelated' }}
+        />
+      )}
+      
+      {/* Loading placeholder */}
+      {!isLoaded && !hasError && !showLowRes && (
         <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-pulse bg-gray-200 rounded w-12 h-12 mx-auto mb-2"></div>
@@ -141,6 +117,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
           </div>
         </div>
       )}
+      
       {/* Main image with enhanced error handling */}
       {(isInView || loading === 'eager') && !hasError && (
         <img
@@ -153,12 +130,13 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
           onLoad={handleLoad}
           onError={handleErrorEnhanced}
           className={`w-full h-full object-cover transition-opacity duration-300 ${
-            isLoaded ? 'opacity-100' : 'opacity-0'
+            isLoaded ? 'opacity-100 z-10' : 'opacity-0'
           }`}
           style={{
             aspectRatio: width && height ? `${width}/${height}` : undefined
           }}
           crossOrigin="anonymous"
+          decoding="async"
         />
       )}
       
