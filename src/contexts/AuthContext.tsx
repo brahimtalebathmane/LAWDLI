@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../lib/supabase';
+import { getOneSignalToken, logoutOneSignalUser } from '../lib/onesignal';
 
 interface AuthContextType {
   user: User | null;
@@ -63,30 +64,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setTimeout(() => {
       console.log('AuthContext: Setting up OneSignal for user:', userData.id);
       
-      if (typeof window !== 'undefined' && window.OneSignalDeferred) {
-        window.OneSignalDeferred.push(async function(OneSignal) {
-          try {
-            await OneSignal.login(userData.id);
-            console.log('AuthContext: OneSignal user logged in:', userData.id);
-          } catch (error) {
-            console.error('AuthContext: Failed to login OneSignal user:', error);
-          }
-        });
-      }
+      getOneSignalToken(userData.id).then((token) => {
+        if (token) {
+          console.log('AuthContext: OneSignal token obtained:', token);
+        }
+      }).catch((error) => {
+        console.error('AuthContext: Failed to get OneSignal token:', error);
+      });
     }, 1000);
   };
 
   const logout = () => {
-    // Remove user from OneSignal
-    if (user && typeof window !== 'undefined' && window.OneSignalDeferred) {
-      window.OneSignalDeferred.push(async function(OneSignal) {
-        try {
-          await OneSignal.logout();
-          console.log('AuthContext: OneSignal user logged out');
-        } catch (error) {
-          console.error('AuthContext: Failed to logout OneSignal user:', error);
-        }
-      });
+    if (user) {
+      logoutOneSignalUser(user.id);
     }
     
     setUser(null);

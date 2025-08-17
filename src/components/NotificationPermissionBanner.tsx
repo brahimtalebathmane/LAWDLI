@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { requestOneSignalPermission } from '../lib/onesignal';
 import { Bell, X } from 'lucide-react';
 
 const NotificationPermissionBanner: React.FC = () => {
@@ -33,48 +34,29 @@ const NotificationPermissionBanner: React.FC = () => {
     try {
       console.log('NotificationBanner: Requesting OneSignal permission...');
       
-      if (typeof window !== 'undefined' && window.OneSignalDeferred) {
-        window.OneSignalDeferred.push(async function(OneSignal) {
-          try {
-            // Login user to OneSignal
-            await OneSignal.login(user.id);
-            
-            // Show permission prompt
-            await OneSignal.Slidedown.promptPush();
-            
-            // Check if subscribed
-            const isSubscribed = OneSignal.User.PushSubscription.optedIn;
-            
-            if (isSubscribed) {
-              console.log('NotificationBanner: OneSignal subscription successful');
-              setShowBanner(false);
-              
-              // Show test notification
-              if ('Notification' in window && Notification.permission === 'granted') {
-                const testNotification = new Notification('لودلي | LAWDLI', {
-                  body: 'Notifications are now enabled!',
-                  icon: 'https://i.postimg.cc/rygydTNp/9.png',
-                  tag: 'test-notification',
-                  requireInteraction: false,
-                  vibrate: [200, 100, 200]
-                });
-                
-                setTimeout(() => {
-                  testNotification.close();
-                }, 5000);
-              }
-            } else {
-              console.log('NotificationBanner: OneSignal subscription failed or denied');
-              alert(t('notifications.permission_denied'));
-            }
-          } catch (error) {
-            console.error('NotificationBanner: OneSignal error:', error);
-            alert('Failed to enable notifications. Please try again.');
-          }
-        });
+      const token = await requestOneSignalPermission(user.id);
+      
+      if (token) {
+        console.log('NotificationBanner: OneSignal subscription successful');
+        setShowBanner(false);
+        
+        // Show test notification
+        if ('Notification' in window && Notification.permission === 'granted') {
+          const testNotification = new Notification('لودلي | LAWDLI', {
+            body: 'Notifications are now enabled!',
+            icon: 'https://i.postimg.cc/rygydTNp/9.png',
+            tag: 'test-notification',
+            requireInteraction: false,
+            vibrate: [200, 100, 200]
+          });
+          
+          setTimeout(() => {
+            testNotification.close();
+          }, 5000);
+        }
       } else {
-        console.error('NotificationBanner: OneSignal not available');
-        alert('OneSignal not loaded. Please refresh the page.');
+        console.log('NotificationBanner: OneSignal subscription failed or denied');
+        alert(t('notifications.permission_denied'));
       }
     } catch (error) {
       console.error('NotificationBanner: Error enabling notifications:', error);
