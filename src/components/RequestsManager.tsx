@@ -3,10 +3,9 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, Request, Group, Response } from '../lib/supabase';
 import { useOptimizedQuery } from '../hooks/useOptimizedQuery';
-import { useOptimisticMutation } from '../hooks/useOptimisticMutation';
 import RefreshButton from './RefreshButton';
 import LoadingSpinner from './LoadingSpinner';
-import { Plus, Send, Upload, Eye, Trash2, Edit } from 'lucide-react';
+import { Plus, Send, Upload, Eye, Trash2, Edit, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface RequestsManagerProps {
   onStatsUpdate: () => void;
@@ -16,7 +15,10 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  
+  // Optimistic UI states
+  const [submitState, setSubmitState] = useState<'idle' | 'success' | 'error'>('idle');
+  const [submitMessage, setSubmitMessage] = useState('');
 
   const [formData, setFormData] = useState({
     title: '',
@@ -79,113 +81,99 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
     onStatsUpdate();
   };
 
-  // Optimistic mutation for creating requests
-  const { mutate: createRequest, isLoading: isCreating } = useOptimisticMutation(
-    async (requestData: typeof formData) => {
+  // Background request sending function
+  const sendRequestInBackground = async (requestData: typeof formData) => {
+    try {
       if (!user) throw new Error('User not authenticated');
       if (!requestData.image) throw new Error('Image is required');
 
-      // Execute all operations in parallel for maximum speed
+      // Upload image
       const fileExt = requestData.image.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
       
-      // Start image upload and request creation in parallel
-      const [uploadResult, requestResult] = await Promise.all([
-        // Upload image
-        supabase.storage
-          .from('request-images')
-          .upload(fileName, requestData.image, {
-            cacheControl: '3600',
-            upsert: false
-          }),
-        // Pre-create request data structure
-        Promise.resolve({
-          title: requestData.title || null,
-          description: requestData.description || null,
-          created_by: user.id
-        })
-      ]);
+      const { error: uploadError } = await supabase.storage
+        .from('request-images')
+        .upload(fileName, requestData.image, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-      if (uploadResult.error) throw uploadResult.error;
+      if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage
         .from('request-images')
         .getPublicUrl(fileName);
 
-      // Create request with image URL
-      const requestWithImage = {
-        ...requestResult,
-        image_url: urlData.publicUrl
-      };
+      // Create request
+      const { data: newRequest, error: requestError } = await supabase
+        .from('requests')
+        .insert({
+          title: requestData.title || null,
+          description: requestData.description || null,
+          image_url: urlData.publicUrl,
+          created_by: user.id
+        })
+        .select(`
+          *,
+          creator:users(full_name),
+          request_groups(group_id, groups(name))
+        `)
+        .single();
 
-      // Execute request creation and group linking in parallel
-      const [newRequest, groupLinkResult] = await Promise.all([
-        supabase
-          .from('requests')
-          .insert(requestWithImage)
-          .select(`
-            *,
-            creator:users(full_name),
-            request_groups(group_id, groups(name))
-          `)
-          .single(),
-        // Pre-prepare group links
-        requestData.selectedGroups.length > 0 
-          ? Promise.resolve(requestData.selectedGroups.map(groupId => ({
-              group_id: groupId
-            })))
-          : Promise.resolve([])
-      ]);
+      if (requestError) throw requestError;
 
-      if (newRequest.error) throw newRequest.error;
-
-      // Link to groups and send notifications in parallel (non-blocking)
+      // Link to groups and send notifications in background
       if (requestData.selectedGroups.length > 0) {
-        const requestGroups = groupLinkResult.map(group => ({
-          request_id: newRequest.data.id,
-          group_id: group.group_id
+        const requestGroups = requestData.selectedGroups.map(groupId => ({
+          request_id: newRequest.id,
+          group_id: groupId
         }));
 
-        // Execute all remaining operations in parallel without waiting
+        // Execute background operations without blocking
         Promise.all([
           supabase.from('request_groups').insert(requestGroups),
-          sendNotificationsToGroups(newRequest.data, requestData.selectedGroups),
-          sendPushNotificationsToGroups(newRequest.data, requestData.selectedGroups)
+          sendNotificationsToGroups(newRequest, requestData.selectedGroups),
+          sendPushNotificationsToGroups(newRequest, requestData.selectedGroups)
         ]).catch(error => {
           console.error('Background operations error:', error);
         });
       }
 
-      return newRequest.data;
-    },
-    {
-      onSuccess: (newRequest) => {
-        // Optimistically update requests list
-        updateRequests([newRequest, ...(requests || [])]);
-        
-        // Reset form and close modal
-        setFormData({
-          title: '',
-          description: '',
-          selectedGroups: [],
-          image: null
-        });
-        setIsModalOpen(false);
-        onStatsUpdate();
-      },
-      onError: (error) => {
-        alert(error.message);
-      }
+      // Update the optimistic request with real data
+      const updatedRequests = (requests || []).map(req => 
+        req.id.startsWith('temp-') ? newRequest : req
+      );
+      updateRequests(updatedRequests);
+      
+      // Keep success state
+      onStatsUpdate();
+      
+    } catch (error) {
+      console.error('Request sending failed:', error);
+      
+      // Remove optimistic request and show error
+      const filteredRequests = (requests || []).filter(req => !req.id.startsWith('temp-'));
+      updateRequests(filteredRequests);
+      
+      setSubmitState('error');
+      setSubmitMessage('Request failed, please try again');
+      
+      // Reset error state after 5 seconds
+      setTimeout(() => {
+        setSubmitState('idle');
+        setSubmitMessage('');
+      }, 5000);
     }
-  );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Immediate UI feedback
-    setIsLoading(true);
+    // 1. Immediately show success state
+    setSubmitState('success');
+    setSubmitMessage('Request sent successfully!');
     
-    // Optimistic UI update - show success immediately
+    // 2. Create optimistic request and show in UI immediately
     const optimisticRequest = {
       id: `temp-${Date.now()}`,
       title: formData.title || 'New Request',
@@ -193,16 +181,33 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
       image_url: formData.image ? URL.createObjectURL(formData.image) : '',
       created_at: new Date().toISOString(),
       created_by: user?.id || '',
-      creator: { full_name: user?.full_name || '' }
+      creator: { full_name: user?.full_name || '' },
+      request_groups: []
     };
     
-    // Show optimistic update immediately
+    // Add optimistic request to UI immediately
     updateRequests([optimisticRequest, ...(requests || [])]);
     
-    // Execute actual request creation
-    await createRequest(formData);
+    // Reset form and close modal immediately
+    const currentFormData = { ...formData };
+    setFormData({
+      title: '',
+      description: '',
+      selectedGroups: [],
+      image: null
+    });
+    setIsModalOpen(false);
     
-    setIsLoading(false);
+    // 3. Send request to backend in background
+    sendRequestInBackground(currentFormData);
+    
+    // Reset success message after 3 seconds
+    setTimeout(() => {
+      if (submitState === 'success') {
+        setSubmitState('idle');
+        setSubmitMessage('');
+      }
+    }, 3000);
   };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -506,17 +511,10 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
                 <div className="flex gap-3 pt-4">
                   <button
                     type="submit"
-                    disabled={isCreating}
-                    className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
                   >
-                    {isCreating ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>Creating...</span>
-                      </>
-                    ) : (
-                      t('sendRequest')
-                    )}
+                    <Send className="h-4 w-4" />
+                    {t('sendRequest')}
                   </button>
                   <button
                     type="button"
@@ -594,6 +592,22 @@ const RequestsManager: React.FC<RequestsManagerProps> = ({ onStatsUpdate }) => {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Success/Error Toast */}
+      {submitState !== 'idle' && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center gap-3 transition-all duration-300 ${
+          submitState === 'success' 
+            ? 'bg-green-100 border border-green-200 text-green-800' 
+            : 'bg-red-100 border border-red-200 text-red-800'
+        }`}>
+          {submitState === 'success' ? (
+            <CheckCircle className="h-5 w-5 text-green-600" />
+          ) : (
+            <AlertCircle className="h-5 w-5 text-red-600" />
+          )}
+          <span className="font-medium">{submitMessage}</span>
         </div>
       )}
     </div>
