@@ -21,18 +21,50 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Call the database cleanup function
-    const { data, error } = await supabase.rpc('cleanup_old_data');
+    // Calculate 24 hours ago timestamp
+    const twentyFourHoursAgo = new Date();
+    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+    const cutoffTime = twentyFourHoursAgo.toISOString();
 
-    if (error) {
-      console.error('Database cleanup function error:', error);
-      throw error;
+    console.log('Cleanup cutoff time:', cutoffTime);
+
+    // Delete old requests (older than 24 hours)
+    const { data: deletedRequests, error: requestsError } = await supabase
+      .from('requests')
+      .delete()
+      .lt('created_at', cutoffTime)
+      .select('id');
+
+    if (requestsError) {
+      console.error('Error deleting old requests:', requestsError);
+      throw requestsError;
     }
 
-    console.log('Cleanup completed:', data);
+    // Delete old notifications (older than 24 hours)
+    const { data: deletedNotifications, error: notificationsError } = await supabase
+      .from('notifications')
+      .delete()
+      .lt('created_at', cutoffTime)
+      .select('id');
+
+    if (notificationsError) {
+      console.error('Error deleting old notifications:', notificationsError);
+      throw notificationsError;
+    }
+
+    const result = {
+      success: true,
+      timestamp: new Date().toISOString(),
+      cutoff_time: cutoffTime,
+      deleted_requests: deletedRequests?.length || 0,
+      deleted_notifications: deletedNotifications?.length || 0,
+      message: `Cleanup completed: ${deletedRequests?.length || 0} requests and ${deletedNotifications?.length || 0} notifications deleted`
+    };
+
+    console.log('Cleanup completed:', result);
 
     return new Response(
-      JSON.stringify(data),
+      JSON.stringify(result),
       { 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
