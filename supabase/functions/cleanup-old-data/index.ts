@@ -8,22 +8,31 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests properly
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      status: 200,
+      headers: corsHeaders 
+    });
   }
 
   try {
     console.log('Starting automatic cleanup process...');
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Calculate 24 hours ago
     const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     console.log('Cleanup cutoff time:', cutoffTime);
 
-    // Delete old requests
+    // Delete old requests (this will cascade delete related data)
     const { data: deletedRequests, error: requestsError } = await supabase
       .from('requests')
       .delete()
@@ -60,6 +69,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify(result),
       { 
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
     );

@@ -26,12 +26,11 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// CRITICAL: Do NOT intercept ANY fetch requests
-// This ensures ALL resources always go to network for fresh content
-self.addEventListener('fetch', (event) => {
-  // Explicitly do nothing - let ALL requests go directly to network
-  // No caching, no interception, no offline functionality
-  return;
+// Add message event handler on initial evaluation (fixes OneSignal warning)
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // ONLY handle push notifications - no other service worker functionality
@@ -80,12 +79,5 @@ self.addEventListener('notificationclick', (event) => {
         }
       })
     );
-  }
-});
-
-// Listen for messages from the main app
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
   }
 });
