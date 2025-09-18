@@ -1,6 +1,13 @@
 // Service Worker for LAWDLI PWA - Strict Online Only Mode
 // This service worker ONLY handles push notifications and prevents ALL caching
 
+// Add message event handler on initial evaluation (fixes OneSignal warning)
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // Skip waiting and claim clients immediately
 self.addEventListener('install', (event) => {
   console.log('Service Worker installing - Strict Online Only Mode');
@@ -26,14 +33,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Add message event handler on initial evaluation (fixes OneSignal warning)
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-});
-
-// ONLY handle push notifications - no other service worker functionality
+// ONLY handle push notifications - no fetch handler to avoid no-op warnings
 self.addEventListener('push', (event) => {
   if (event.data) {
     const data = event.data.json();

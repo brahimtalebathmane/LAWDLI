@@ -65,6 +65,28 @@ const AdminDashboard: React.FC = () => {
     try {
       console.log('Running manual cleanup...');
       
+      // Try direct database cleanup first as fallback
+      const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      
+      const [requestsResult, notificationsResult] = await Promise.all([
+        supabase.from('requests').delete().lt('created_at', cutoffTime).select('id'),
+        supabase.from('notifications').delete().lt('created_at', cutoffTime).select('id')
+      ]);
+      
+      const deletedRequests = requestsResult.data?.length || 0;
+      const deletedNotifications = notificationsResult.data?.length || 0;
+      
+      if (requestsResult.error) throw requestsResult.error;
+      if (notificationsResult.error) throw notificationsResult.error;
+      
+      const result = {
+        success: true,
+        deleted_requests: deletedRequests,
+        deleted_notifications: deletedNotifications
+      };
+      
+      /*
+      // Edge Function approach (if CORS is fixed)
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cleanup-old-data`, {
         method: 'POST',
         headers: {
@@ -74,6 +96,8 @@ const AdminDashboard: React.FC = () => {
       });
 
       const result = await response.json();
+      */
+      
       console.log('Cleanup result:', result);
       
       if (result.success) {
