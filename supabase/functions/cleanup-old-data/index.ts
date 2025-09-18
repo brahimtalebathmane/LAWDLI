@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS"
 };
 
 serve(async (req) => {
@@ -15,20 +15,15 @@ serve(async (req) => {
   try {
     console.log('Starting automatic cleanup process...');
 
-    // Initialize Supabase client with service role key
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Calculate 24 hours ago timestamp
-    const twentyFourHoursAgo = new Date();
-    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
-    const cutoffTime = twentyFourHoursAgo.toISOString();
-
+    // Calculate 24 hours ago
+    const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     console.log('Cleanup cutoff time:', cutoffTime);
 
-    // Delete old requests (older than 24 hours)
+    // Delete old requests
     const { data: deletedRequests, error: requestsError } = await supabase
       .from('requests')
       .delete()
@@ -40,7 +35,7 @@ serve(async (req) => {
       throw requestsError;
     }
 
-    // Delete old notifications (older than 24 hours)
+    // Delete old notifications
     const { data: deletedNotifications, error: notificationsError } = await supabase
       .from('notifications')
       .delete()
@@ -54,14 +49,13 @@ serve(async (req) => {
 
     const result = {
       success: true,
-      timestamp: new Date().toISOString(),
       cutoff_time: cutoffTime,
       deleted_requests: deletedRequests?.length || 0,
       deleted_notifications: deletedNotifications?.length || 0,
-      message: `Cleanup completed: ${deletedRequests?.length || 0} requests and ${deletedNotifications?.length || 0} notifications deleted`
+      timestamp: new Date().toISOString()
     };
 
-    console.log('Cleanup completed:', result);
+    console.log('Cleanup completed successfully:', result);
 
     return new Response(
       JSON.stringify(result),
@@ -73,15 +67,12 @@ serve(async (req) => {
   } catch (error) {
     console.error('Cleanup process failed:', error);
     
-    const errorResponse = {
-      success: false,
-      error: "Cleanup process failed", 
-      details: String(error),
-      timestamp: new Date().toISOString()
-    };
-
     return new Response(
-      JSON.stringify(errorResponse),
+      JSON.stringify({ 
+        success: false, 
+        error: String(error),
+        timestamp: new Date().toISOString()
+      }),
       { 
         status: 500, 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
