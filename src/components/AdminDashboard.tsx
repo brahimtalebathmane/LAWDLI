@@ -11,7 +11,7 @@ import UsersManager from './UsersManager';
 import NotificationsPanel from './NotificationsPanel';
 import RefreshButton from './RefreshButton';
 import LoadingSpinner from './LoadingSpinner';
-import { BarChart3, Users, MessageSquare, Bell } from 'lucide-react';
+import { BarChart3, Users, MessageSquare, Bell, Trash2 } from 'lucide-react';
 
 type ActiveTab = 'dashboard' | 'requests' | 'groups' | 'users' | 'notifications';
 
@@ -56,6 +56,39 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const runManualCleanup = async () => {
+    if (!confirm('هل تريد حذف جميع الطلبات والإشعارات الأقدم من 24 ساعة؟\nDo you want to delete all requests and notifications older than 24 hours?')) {
+      return;
+    }
+
+    setIsRefreshing(true);
+    try {
+      console.log('Running manual cleanup...');
+      
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cleanup-old-data`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const result = await response.json();
+      console.log('Cleanup result:', result);
+      
+      if (result.success) {
+        alert(`تم التنظيف بنجاح!\nCleanup successful!\n\nDeleted requests: ${result.deleted_requests || 0}\nDeleted notifications: ${result.deleted_notifications || 0}`);
+        loadStats(); // Refresh stats after cleanup
+      } else {
+        alert(`خطأ في التنظيف: ${result.error}\nCleanup error: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Manual cleanup error:', error);
+      alert(`خطأ في التنظيف: ${error}\nCleanup error: ${error}`);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
   const renderContent = () => {
     switch (activeTab) {
       case 'requests':
@@ -80,6 +113,15 @@ const AdminDashboard: React.FC = () => {
                   size="md"
                   variant="ghost"
                 />
+                <button
+                  onClick={runManualCleanup}
+                  disabled={isRefreshing}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                  title="Clean up old data (24+ hours)"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Clean Old Data</span>
+                </button>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
