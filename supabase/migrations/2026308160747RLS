@@ -1,0 +1,49 @@
+-- أولاً: التأكد من تفعيل نظام الحماية لجميع الجداول
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.group_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.request_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.responses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.push_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_tokens ENABLE ROW LEVEL SECURITY;
+
+-- ثانياً: حذف أي سياسات قديمة لتجنب التعارض (اختياري لكن مفضل)
+DROP POLICY IF EXISTS "Allow all for users" ON public.users;
+DROP POLICY IF EXISTS "Allow all for groups" ON public.groups;
+
+-- ثالثاً: إنشاء سياسات تسمح للتطبيق بالعمل (بما أن الدخول يتم عبر Anon Key حالياً)
+-- ملاحظة: هذه السياسات تسمح بالوصول الكامل لتسهيل الإصلاح الآن
+
+-- صلاحيات جدول المستخدمين (لإنشاء الحسابات والبحث عنها)
+CREATE POLICY "Enable operations for users table" ON public.users 
+FOR ALL USING (true) WITH CHECK (true);
+
+-- صلاحيات جدول المجموعات
+CREATE POLICY "Enable operations for groups table" ON public.groups 
+FOR ALL USING (true) WITH CHECK (true);
+
+-- صلاحيات أعضاء المجموعات
+CREATE POLICY "Enable operations for group_members table" ON public.group_members 
+FOR ALL USING (true) WITH CHECK (true);
+
+-- صلاحيات الطلبات (Requests)
+CREATE POLICY "Enable operations for requests table" ON public.requests 
+FOR ALL USING (true) WITH CHECK (true);
+
+-- صلاحيات ربط الطلبات بالمجموعات
+CREATE POLICY "Enable operations for request_groups table" ON public.request_groups 
+FOR ALL USING (true) WITH CHECK (true);
+
+-- صلاحيات الردود (Responses)
+CREATE POLICY "Enable operations for responses table" ON public.responses 
+FOR ALL USING (true) WITH CHECK (true);
+
+-- صلاحيات الإشعارات والتوكنات
+CREATE POLICY "Enable operations for notifications table" ON public.notifications 
+FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable operations for push_tokens table" ON public.push_tokens 
+FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable operations for user_tokens table" ON public.user_tokens 
+FOR ALL USING (true) WITH CHECK (true);
