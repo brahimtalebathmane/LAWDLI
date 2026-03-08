@@ -42,13 +42,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             localStorage.removeItem('lawdli_user');
           }
         } catch (error) {
-          console.error('Error parsing stored user:', error);
           localStorage.removeItem('lawdli_user');
         }
       }
     } catch (error) {
-      console.error('Error accessing localStorage:', error);
-      // Continue without stored user if localStorage is not available
     }
     setIsLoading(false);
   }, []);
@@ -58,20 +55,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       localStorage.setItem('lawdli_user', JSON.stringify(userData));
     } catch (error) {
-      console.error('Error saving user to localStorage:', error);
     }
-    
-    // Associate user with OneSignal after successful login
+
     setTimeout(() => {
-      console.log('AuthContext: Setting up OneSignal for user:', userData.id);
-      
-      getOneSignalToken(userData.id).then((token) => {
-        if (token) {
-          console.log('AuthContext: OneSignal token obtained:', token);
-        }
-      }).catch((error) => {
-        console.error('AuthContext: Failed to get OneSignal token:', error);
-      });
+      getOneSignalToken(userData.id).catch(() => {});
     }, 1000);
 
     // Initialize cleanup scheduler for admin users
@@ -94,7 +81,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       localStorage.removeItem('lawdli_user');
     } catch (error) {
-      console.error('Error removing user from localStorage:', error);
     }
   };
 

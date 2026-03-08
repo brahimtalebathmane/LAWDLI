@@ -5,11 +5,9 @@ let cleanupInterval: NodeJS.Timeout | null = null;
 let isCleanupRunning = false;
 
 export const initializeCleanupScheduler = () => {
-  console.log('Cleanup now handled automatically by Supabase - no client-side scheduling needed');
 };
 
 export const stopCleanupScheduler = () => {
-  console.log('Cleanup handled by Supabase - no client-side cleanup to stop');
 };
 
 // Export for manual cleanup if needed
@@ -24,10 +22,8 @@ export const runManualCleanup = async () => {
     });
 
     const result = await response.json();
-    console.log('Manual cleanup result:', result);
     return result;
   } catch (error) {
-    console.error('Manual cleanup error:', error);
     throw error;
   }
 };

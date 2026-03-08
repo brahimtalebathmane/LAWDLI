@@ -48,7 +48,6 @@ const Login: React.FC = () => {
       // Login successful
       login(users[0]);
     } catch (err) {
-      console.error('Login error:', err);
       setError(t('error'));
     } finally {
       setIsLoading(false);

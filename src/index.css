@@ -28,19 +28,34 @@
   .touch-manipulation {
     touch-action: manipulation;
   }
-  
+
   .will-change-transform {
     will-change: transform;
   }
-  
+
   .gpu-accelerated {
     transform: translateZ(0);
     backface-visibility: hidden;
     perspective: 1000px;
   }
-  
+
   .smooth-scroll {
     -webkit-overflow-scrolling: touch;
+  }
+
+  /* Safe area insets for mobile devices */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Touch-friendly minimum tap target size */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
   }
   
   /* Optimistic UI animations */
